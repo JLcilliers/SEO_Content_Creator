@@ -13,7 +13,7 @@ export default function Form({ onSuccess, onError, onLoadingChange }: FormProps)
   const [url, setUrl] = useState('');
   const [topic, setTopic] = useState('');
   const [keywords, setKeywords] = useState('');
-  const [length, setLength] = useState(1000);
+  const [length, setLength] = useState(1500);
   const [loading, setLoading] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -122,7 +122,7 @@ export default function Form({ onSuccess, onError, onLoadingChange }: FormProps)
           disabled={loading}
           required
         />
-        <small className="form-hint">Between 300 and 3000 words</small>
+        <small className="form-hint">Recommended: 1500-2500 words for comprehensive SEO content</small>
       </div>
 
       <button type="submit" disabled={loading} className="submit-button">
