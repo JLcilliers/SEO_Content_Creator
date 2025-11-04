@@ -282,7 +282,7 @@ export function buildRefinePromptPass2(
   length: number,
   lengthNote: string
 ): string {
-  return `Final polish and optimization pass. Use only site context for all factual information.
+  return `Comprehensive refinement and final polish pass. Transform the draft into publication-ready SEO content. Use only site context for all factual information.
 
 [SITE CONTEXT START]
 ${siteContext}
@@ -292,63 +292,78 @@ ${siteContext}
 ${draft}
 [DRAFT END]
 
-FINAL OPTIMIZATION CHECKLIST:
+COMPREHENSIVE REFINEMENT CHECKLIST:
 
-1. MICRO-EDITING:
+1. ACCURACY VERIFICATION (Critical Priority):
+   - Remove or correct ANY claim not explicitly in site context
+   - Verify no invented statistics, dates, prices, names, or testimonials
+   - Ensure all examples are based on concepts from site context
+   - Check that all service/product mentions align with actual site offerings
+   - Triple-check no fabricated facts slipped through
+
+2. SEO OPTIMIZATION:
+   - Verify primary keyword appears in first 100 words naturally
+   - Confirm 40% of H2 headings are question-format
+   - Check keyword density is 0.5-1.5% for primary term
+   - Ensure meta title is 50-60 chars with keyword front-loaded
+   - Ensure meta description is 150-160 chars with keyword and CTA
+   - Verify heading hierarchy is optimal for scannability
+
+3. CONTENT DEPTH & STRUCTURE:
+   - Each H2 section should be 200-300 words minimum
+   - Add specific details from site context where sections feel thin
+   - Ensure every question-based heading has a direct answer in first sentence
+   - Verify formatted elements (lists, tables, blockquotes) are present and well-placed
+   - Check that FAQs are 5-7 questions with complete, helpful answers
+   - Confirm logical heading hierarchy (H1 → H2 → H3)
+
+4. READABILITY & ENGAGEMENT:
    - Polish sentence flow and clarity
-   - Ensure natural, conversational tone
-   - Remove any remaining redundancy or wordiness
-   - Verify every sentence adds value
-   - Check for typos or grammatical issues
+   - Ensure natural, conversational tone throughout
+   - Remove any redundancy, wordiness, or robotic phrasing
+   - Verify every sentence adds value - eliminate fluff
+   - Check paragraph length (3-4 sentences max)
+   - Verify sentence variety and active voice usage
+   - Add transition phrases: "This means...", "In other words...", "The key point is..."
+   - Ensure key terms are bolded appropriately
+   - Verify blockquotes highlight important takeaways
 
-2. SEO FINAL CHECK:
-   - Confirm primary keyword in first 100 words
-   - Verify 40% of H2s are questions
-   - Check meta title (50-60 chars) and description (150-160 chars)
-   - Ensure keyword usage feels natural throughout
-   - Verify heading hierarchy is optimal for scanability
-
-3. USER VALUE VERIFICATION:
+5. USER VALUE VERIFICATION:
    - Can users find answers quickly?
    - Does each section deliver on its heading's promise?
    - Are there clear next steps in the conclusion?
    - Is the content actionable and practical?
+   - Does it feel complete and authoritative?
 
-4. FORMATTING FINAL CHECK:
+6. FORMATTING VALIDATION:
    - Verify all markdown formatting is correct
-   - Check that tables render properly
-   - Ensure blockquotes use > format
+   - Check that tables render properly (if applicable)
+   - Ensure blockquotes use > format correctly
    - Confirm bullet lists and numbered lists are formatted correctly
    - Verify bold terms are appropriately highlighted
+   - Check for typos or grammatical issues
 
-5. FACTUAL ACCURACY FINAL PASS:
-   - Triple-check no invented facts slipped through
-   - Verify all examples align with site context
-   - Confirm statistics/numbers come from site context only
-   - Ensure service/product descriptions match site exactly
-
-6. LENGTH VERIFICATION:
-   - Article body should be within ±5% of ${length} words
-   - ${lengthNote || 'Confirm comprehensive coverage achieved'}
+7. LENGTH ADJUSTMENT:
+   - Target: ${length} words for article body (±5% acceptable)
+   - ${lengthNote || 'Ensure comprehensive coverage without filler'}
+   - Add depth by expanding on concepts from site context, not by padding
    - Content should feel complete and authoritative
 
-7. SCHEMA FINAL CHECK:
-   - Verify JSON-LD parses correctly
-   - Check all required schema fields are present
-   - Ensure FAQ schema matches content exactly
-   - Confirm dates, names, and URLs are accurate
-
-8. OUTPUT FORMAT COMPLIANCE:
-   - All required fences present (META TITLE, CONTENT START/END, FAQ START/END, SCHEMA START/END)
-   - FAQ count is 5-7 questions
-   - Schema is in proper JSON code fence
+8. SCHEMA & OUTPUT FORMAT:
+   - Verify JSON-LD structure is valid and parses correctly
+   - Check all schema fields use accurate information from site context
+   - Ensure FAQ schema matches FAQ section exactly
+   - Confirm all required fences present (META TITLE, CONTENT START/END, FAQ START/END, SCHEMA START/END)
+   - Verify FAQ count is 5-7 questions
+   - Schema must be in proper JSON code fence
    - No formatting errors or broken markdown
 
-GLOBAL RULES CHECK:
+CRITICAL GLOBAL RULES:
 - NO em dashes anywhere - only hyphens
 - Human, natural language throughout
-- Site context used exclusively for facts
+- Site context used exclusively for all facts
 - Value-driven content, no fluff
+- Maintain exact output format with all required fences and labels
 
 Return the complete, publication-ready content in the exact required format with all fences and labels.`;
 }

@@ -6,7 +6,6 @@ import Anthropic from '@anthropic-ai/sdk';
 import {
   SYSTEM_PROMPT,
   buildGenerationPrompt,
-  buildRefinePromptPass1,
   buildRefinePromptPass2,
 } from './prompts';
 import { wordCount, getLengthNote } from './normalize';
@@ -76,7 +75,8 @@ async function callClaude(
 }
 
 /**
- * Generate SEO content with 3-pass refinement
+ * Generate SEO content with 2-pass refinement
+ * Optimized for Vercel 60s timeout limit
  */
 export async function generateWithRefinement(
   context: string,
@@ -102,27 +102,14 @@ export async function generateWithRefinement(
 
   console.log(`Draft 1 word count: ${currentCount1} (target: ${targetLength})`);
 
-  // Pass 2: Refine with accuracy, tone, SEO, and length adjustment
-  console.log('Pass 2: Refining for accuracy, tone, and SEO...');
-  const refinePrompt1 = buildRefinePromptPass1(context, draft1, targetLength, lengthNote1);
-  const draft2 = await callClaude(refinePrompt1, SYSTEM_PROMPT, temperature, model);
+  // Pass 2: Comprehensive refinement and polish
+  console.log('Pass 2: Refining and finalizing...');
+  const refinePrompt = buildRefinePromptPass2(context, draft1, targetLength, lengthNote1);
+  const finalDraft = await callClaude(refinePrompt, SYSTEM_PROMPT, temperature, model);
 
-  // Check word count again for pass 2
-  const contentMatch2 = draft2.match(/===CONTENT START===\s*([\s\S]*?)\s*===CONTENT END===/);
-  const contentText2 = contentMatch2 ? contentMatch2[1] : draft2;
-  const currentCount2 = wordCount(contentText2);
-  const lengthNote2 = getLengthNote(currentCount2, targetLength);
-
-  console.log(`Draft 2 word count: ${currentCount2} (target: ${targetLength})`);
-
-  // Pass 3: Final polish
-  console.log('Pass 3: Final polish...');
-  const refinePrompt2 = buildRefinePromptPass2(context, draft2, targetLength, lengthNote2);
-  const finalDraft = await callClaude(refinePrompt2, SYSTEM_PROMPT, temperature, model);
-
-  const contentMatch3 = finalDraft.match(/===CONTENT START===\s*([\s\S]*?)\s*===CONTENT END===/);
-  const contentText3 = contentMatch3 ? contentMatch3[1] : finalDraft;
-  const finalCount = wordCount(contentText3);
+  const contentMatch2 = finalDraft.match(/===CONTENT START===\s*([\s\S]*?)\s*===CONTENT END===/);
+  const contentText2 = contentMatch2 ? contentMatch2[1] : finalDraft;
+  const finalCount = wordCount(contentText2);
 
   console.log(`Final word count: ${finalCount} (target: ${targetLength})`);
 
