@@ -43,11 +43,29 @@ export default function Form({ onSuccess, onError, onLoadingChange }: FormProps)
       });
 
       if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error || 'Failed to generate content');
+        let errorMessage = 'Failed to generate content';
+        try {
+          const text = await response.text();
+          // Try to parse as JSON first
+          try {
+            const error = JSON.parse(text);
+            errorMessage = error.error || errorMessage;
+          } catch {
+            // If not JSON, use the raw text
+            errorMessage = text || errorMessage;
+          }
+        } catch {
+          // Use default message
+        }
+        throw new Error(errorMessage);
       }
 
-      const result: GenerateResponse = await response.json();
+      let result: GenerateResponse;
+      try {
+        result = await response.json();
+      } catch (parseError) {
+        throw new Error('Failed to parse API response. The server may have returned invalid data.');
+      }
       onSuccess(result);
     } catch (error) {
       console.error('Error:', error);

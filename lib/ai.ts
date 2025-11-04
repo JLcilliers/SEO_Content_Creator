@@ -38,25 +38,41 @@ async function callClaude(
 ): Promise<string> {
   const client = getAnthropic();
 
-  const response = await client.messages.create({
-    model,
-    max_tokens: 16000,
-    temperature,
-    system,
-    messages: [
-      {
-        role: 'user',
-        content: userMessage,
-      },
-    ],
-  });
+  try {
+    const response = await client.messages.create({
+      model,
+      max_tokens: 16000,
+      temperature,
+      system,
+      messages: [
+        {
+          role: 'user',
+          content: userMessage,
+        },
+      ],
+    });
 
-  const content = response.content[0];
-  if (content.type !== 'text') {
-    throw new Error('Unexpected response type from Claude');
+    const content = response.content[0];
+    if (content.type !== 'text') {
+      throw new Error('Unexpected response type from Claude');
+    }
+
+    return content.text;
+  } catch (error: any) {
+    // Handle Anthropic API errors
+    if (error?.status === 401) {
+      throw new Error('Invalid API key. Please check your ANTHROPIC_API_KEY.');
+    } else if (error?.status === 404) {
+      throw new Error(`Model '${model}' not found. Your API key may not have access to this model.`);
+    } else if (error?.status === 429) {
+      throw new Error('Rate limit exceeded. Please try again later.');
+    } else if (error?.error?.message) {
+      throw new Error(`Anthropic API error: ${error.error.message}`);
+    } else if (error?.message) {
+      throw new Error(`Claude API error: ${error.message}`);
+    }
+    throw error;
   }
-
-  return content.text;
 }
 
 /**
