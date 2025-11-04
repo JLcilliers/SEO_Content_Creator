@@ -62,8 +62,8 @@ ANTHROPIC_API_KEY=your_anthropic_api_key_here
 Optional environment variables with their defaults:
 
 ```env
-# Claude model to use (default: claude-3-5-sonnet-20241022)
-CLAUDE_MODEL=claude-3-5-sonnet-20241022
+# Claude model to use (default: claude-3-5-sonnet-20240620)
+CLAUDE_MODEL=claude-3-5-sonnet-20240620
 
 # Maximum pages to scrape (default: 10)
 SCRAPE_MAX_PAGES=10
@@ -265,7 +265,7 @@ MIT
 ## Notes
 
 - **Rendering**: The app renders headings as real H1-H4 elements on the page, not as code snippets
-- **Model**: Uses `claude-3-5-sonnet-20241022` by default for best quality
+- **Model**: Uses `claude-3-5-sonnet-20240620` by default for best quality
 - **Concurrency**: Default of 3 concurrent requests balances speed and politeness
 - **Context size**: Each page is limited to ~1200 words to maintain signal quality
 - **Timeout**: 12-second timeout per page prevents hanging on slow sites

@@ -68,7 +68,7 @@ export async function generateWithRefinement(
   keywords: string[],
   targetLength: number
 ): Promise<string> {
-  const model = process.env.CLAUDE_MODEL || 'claude-3-5-sonnet-20241022';
+  const model = process.env.CLAUDE_MODEL || 'claude-3-5-sonnet-20240620';
   const temperature = parseFloat(process.env.PROMPT_TEMPERATURE || '0.2');
 
   const joinedKeywords = keywords.join(', ');
