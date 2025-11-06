@@ -50,6 +50,19 @@ export default function Form({ onSuccess, onError, onLoadingChange, onProgressUp
 
         const job = await response.json();
 
+        console.log(`[Form] Polling job status:`, {
+          jobId,
+          status: job.status,
+          progress: job.progress,
+          hasResult: !!job.result,
+          hasMetaTitle: !!job.result?.metaTitle,
+          hasMetaDescription: !!job.result?.metaDescription,
+          hasContentMarkdown: !!job.result?.contentMarkdown,
+          hasFaqRaw: !!job.result?.faqRaw,
+          hasSchemaJsonString: !!job.result?.schemaJsonString,
+          pagesCount: job.result?.pages?.length || 0,
+        });
+
         // Update progress
         if (onProgressUpdate) {
           onProgressUpdate(job.progress || 0, job.message || 'Processing...');
@@ -57,9 +70,24 @@ export default function Form({ onSuccess, onError, onLoadingChange, onProgressUp
 
         // Check if completed
         if (job.status === 'completed') {
+          console.log(`[Form] Job completed, checking result...`, {
+            hasResult: !!job.result,
+            resultKeys: job.result ? Object.keys(job.result) : [],
+          });
+
           if (!job.result) {
+            console.error('[Form] Job completed but no result returned!', { job });
             throw new Error('Job completed but no result returned');
           }
+
+          console.log('[Form] Result found, calling onSuccess with:', {
+            hasMetaTitle: !!job.result.metaTitle,
+            hasMetaDescription: !!job.result.metaDescription,
+            hasContentMarkdown: !!job.result.contentMarkdown,
+            hasFaqRaw: !!job.result.faqRaw,
+            hasSchemaJsonString: !!job.result.schemaJsonString,
+            pagesCount: job.result.pages?.length || 0,
+          });
 
           // Transform result to match GenerateResponse interface
           onSuccess({

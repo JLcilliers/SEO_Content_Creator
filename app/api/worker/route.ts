@@ -109,14 +109,27 @@ export async function POST(request: NextRequest) {
       const parsed = parseSections(finalText);
 
       // Complete job
-      await completeJob(jobId, {
+      const resultData = {
         metaTitle: parsed.metaTitle,
         metaDescription: parsed.metaDescription,
         contentMarkdown: parsed.contentMarkdown,
         faqRaw: parsed.faqRaw,
         schemaJsonString: parsed.schemaJsonString,
         pages: crawlResult.pages,
+      };
+
+      console.log(`[Worker] Job ${jobId}: Completing with result data:`, {
+        hasMetaTitle: !!resultData.metaTitle,
+        hasMetaDescription: !!resultData.metaDescription,
+        hasContentMarkdown: !!resultData.contentMarkdown,
+        hasFaqRaw: !!resultData.faqRaw,
+        hasSchemaJsonString: !!resultData.schemaJsonString,
+        pagesCount: resultData.pages?.length || 0,
+        metaTitleLength: resultData.metaTitle?.length || 0,
+        contentLength: resultData.contentMarkdown?.length || 0,
       });
+
+      await completeJob(jobId, resultData);
 
       const totalDuration = Date.now() - startTime;
       console.log(`[Worker] Job ${jobId}: Completed in ${totalDuration}ms`);

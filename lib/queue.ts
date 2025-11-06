@@ -94,6 +94,19 @@ export function getSupabase(): SupabaseClient {
  * Convert database row to Job object
  */
 function rowToJob(row: JobRow): Job {
+  const hasResult = !!row.result_meta_title;
+
+  console.log(`[Queue] rowToJob for ${row.id}:`, {
+    status: row.status,
+    hasResult,
+    hasMetaTitle: !!row.result_meta_title,
+    hasMetaDescription: !!row.result_meta_description,
+    hasContentMarkdown: !!row.result_content_markdown,
+    hasFaqRaw: !!row.result_faq_raw,
+    hasSchemaJsonString: !!row.result_schema_json_string,
+    hasPages: !!row.result_pages,
+  });
+
   return {
     id: row.id,
     status: row.status as JobStatus,
@@ -109,7 +122,7 @@ function rowToJob(row: JobRow): Job {
       keywords: row.input_keywords,
       length: row.input_length,
     },
-    result: row.result_meta_title
+    result: hasResult
       ? {
           metaTitle: row.result_meta_title!,
           metaDescription: row.result_meta_description!,
@@ -278,12 +291,24 @@ export async function getNextPendingJob(): Promise<string | null> {
  * Mark job as completed with result
  */
 export async function completeJob(jobId: string, result: Job['result']): Promise<void> {
+  console.log(`[Queue] completeJob called for ${jobId}:`, {
+    hasResult: !!result,
+    hasMetaTitle: !!result?.metaTitle,
+    hasMetaDescription: !!result?.metaDescription,
+    hasContentMarkdown: !!result?.contentMarkdown,
+    hasFaqRaw: !!result?.faqRaw,
+    hasSchemaJsonString: !!result?.schemaJsonString,
+    pagesCount: result?.pages?.length || 0,
+  });
+
   await updateJob(jobId, {
     status: JobStatus.COMPLETED,
     progress: 100,
     message: 'Content generation completed successfully',
     result,
   });
+
+  console.log(`[Queue] Job ${jobId} marked as completed in database`);
 }
 
 /**
