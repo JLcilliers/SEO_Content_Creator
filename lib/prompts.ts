@@ -223,6 +223,20 @@ REMEMBER:
 This is a single-pass generation - produce FINAL, POLISHED content ready for immediate publishing. Triple-check accuracy, optimize SEO elements, ensure readability, and verify all formatting. No revision pass will follow.`;
 }
 
+/**
+ * LEGACY: Original generation prompt for 2-pass system
+ * Kept for backward compatibility with generateWithRefinementTwoPass
+ */
+export function buildGenerationPrompt(
+  siteContext: string,
+  topic: string,
+  joinedKeywords: string,
+  length: number
+): string {
+  // Use the comprehensive prompt as base - it's better quality
+  return buildComprehensivePrompt(siteContext, topic, joinedKeywords, length);
+}
+
 export function buildRefinePromptPass1(
   siteContext: string,
   draft: string,
