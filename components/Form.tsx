@@ -50,18 +50,8 @@ export default function Form({ onSuccess, onError, onLoadingChange, onProgressUp
 
         const job = await response.json();
 
-        console.log(`[Form] Polling job status:`, {
-          jobId,
-          status: job.status,
-          progress: job.progress,
-          hasResult: !!job.result,
-          hasMetaTitle: !!job.result?.metaTitle,
-          hasMetaDescription: !!job.result?.metaDescription,
-          hasContentMarkdown: !!job.result?.contentMarkdown,
-          hasFaqRaw: !!job.result?.faqRaw,
-          hasSchemaJsonString: !!job.result?.schemaJsonString,
-          pagesCount: job.result?.pages?.length || 0,
-        });
+        // Detailed logging that works in production
+        console.log(`[Form] Job ${jobId} - Status: ${job.status}, Progress: ${job.progress}%, HasResult: ${!!job.result}, Message: ${job.message || 'none'}`);
 
         // Update progress
         if (onProgressUpdate) {
@@ -70,24 +60,14 @@ export default function Form({ onSuccess, onError, onLoadingChange, onProgressUp
 
         // Check if completed
         if (job.status === 'completed') {
-          console.log(`[Form] Job completed, checking result...`, {
-            hasResult: !!job.result,
-            resultKeys: job.result ? Object.keys(job.result) : [],
-          });
+          console.log(`[Form] Job ${jobId} COMPLETED! HasResult: ${!!job.result}, ResultKeys: ${job.result ? Object.keys(job.result).join(',') : 'none'}`);
 
           if (!job.result) {
-            console.error('[Form] Job completed but no result returned!', { job });
+            console.error(`[Form] ERROR: Job ${jobId} completed but no result! Status: ${job.status}, Progress: ${job.progress}`);
             throw new Error('Job completed but no result returned');
           }
 
-          console.log('[Form] Result found, calling onSuccess with:', {
-            hasMetaTitle: !!job.result.metaTitle,
-            hasMetaDescription: !!job.result.metaDescription,
-            hasContentMarkdown: !!job.result.contentMarkdown,
-            hasFaqRaw: !!job.result.faqRaw,
-            hasSchemaJsonString: !!job.result.schemaJsonString,
-            pagesCount: job.result.pages?.length || 0,
-          });
+          console.log(`[Form] SUCCESS: Calling onSuccess for job ${jobId}`);
 
           // Transform result to match GenerateResponse interface
           onSuccess({
@@ -169,6 +149,8 @@ export default function Form({ onSuccess, onError, onLoadingChange, onProgressUp
       if (!jobId) {
         throw new Error('No job ID returned');
       }
+
+      console.log(`[Form] Job created: ${jobId}. Starting to poll for completion...`);
 
       // Step 2: Poll for job completion
       await pollJobStatus(jobId);
