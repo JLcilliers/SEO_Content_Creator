@@ -60,11 +60,11 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Get environment variables with defaults (extremely aggressive optimization for Vercel 60s timeout)
-    // Reduced to bare minimum while maintaining quality
-    const maxPages = parseInt(process.env.SCRAPE_MAX_PAGES || '2', 10);
-    const concurrency = parseInt(process.env.SCRAPE_CONCURRENCY || '2', 10);
-    const timeoutMs = parseInt(process.env.SCRAPE_TIMEOUT_MS || '4000', 10);
+    // Get environment variables with defaults (ULTRA minimal - homepage only for Vercel 60s timeout)
+    // Using just homepage provides sufficient context for most SEO content
+    const maxPages = parseInt(process.env.SCRAPE_MAX_PAGES || '1', 10);
+    const concurrency = parseInt(process.env.SCRAPE_CONCURRENCY || '1', 10);
+    const timeoutMs = parseInt(process.env.SCRAPE_TIMEOUT_MS || '5000', 10);
 
     const startTime = Date.now();
     console.log(`[${new Date().toISOString()}] Starting crawl of ${normalizedUrl} (max ${maxPages} pages, ${timeoutMs}ms timeout)`);

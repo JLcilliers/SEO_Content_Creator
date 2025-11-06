@@ -41,7 +41,7 @@ async function callClaude(
   try {
     const response = await client.messages.create({
       model,
-      max_tokens: 10000, // Aggressively reduced to 10k for faster generation
+      max_tokens: 8000, // Ultra-minimal for fastest generation under 60s timeout
       temperature,
       system,
       messages: [
