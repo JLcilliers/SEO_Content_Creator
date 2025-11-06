@@ -19,18 +19,34 @@ export default function Form({ onSuccess, onError, onLoadingChange, onProgressUp
 
   // Poll job status
   const pollJobStatus = async (jobId: string) => {
-    const maxAttempts = 150; // 5 minutes max (150 * 2s = 300s)
+    const maxAttempts = 180; // 6 minutes max (180 * 2s = 360s) - buffer for worker timeout
     let attempts = 0;
+    let consecutiveErrors = 0;
+    const maxConsecutiveErrors = 3;
 
     while (attempts < maxAttempts) {
       attempts++;
 
       try {
-        const response = await fetch(`/api/jobs/${jobId}`);
+        const response = await fetch(`/api/jobs/${jobId}`, {
+          cache: 'no-store', // Prevent caching to always get fresh status
+          headers: {
+            'Cache-Control': 'no-cache',
+          },
+        });
 
         if (!response.ok) {
-          throw new Error('Failed to check job status');
+          consecutiveErrors++;
+          if (consecutiveErrors >= maxConsecutiveErrors) {
+            throw new Error('Failed to check job status after multiple attempts');
+          }
+          // Wait and retry on network errors
+          await new Promise((resolve) => setTimeout(resolve, 2000));
+          continue;
         }
+
+        // Reset error counter on successful fetch
+        consecutiveErrors = 0;
 
         const job = await response.json();
 
@@ -65,11 +81,16 @@ export default function Form({ onSuccess, onError, onLoadingChange, onProgressUp
         // Wait 2 seconds before next poll
         await new Promise((resolve) => setTimeout(resolve, 2000));
       } catch (error) {
-        throw error;
+        // If it's a final error (not a network retry), throw it
+        if (error instanceof Error && error.message !== 'Failed to check job status') {
+          throw error;
+        }
+        // Otherwise, continue polling
+        await new Promise((resolve) => setTimeout(resolve, 2000));
       }
     }
 
-    throw new Error('Job timed out after 5 minutes');
+    throw new Error('Job timed out after 6 minutes. The job may still be processing - check back in a moment.');
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
