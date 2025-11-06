@@ -60,19 +60,24 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Get environment variables with defaults (aggressively optimized for Vercel 60s timeout)
-    const maxPages = parseInt(process.env.SCRAPE_MAX_PAGES || '3', 10);
-    const concurrency = parseInt(process.env.SCRAPE_CONCURRENCY || '3', 10);
-    const timeoutMs = parseInt(process.env.SCRAPE_TIMEOUT_MS || '5000', 10);
+    // Get environment variables with defaults (extremely aggressive optimization for Vercel 60s timeout)
+    // Reduced to bare minimum while maintaining quality
+    const maxPages = parseInt(process.env.SCRAPE_MAX_PAGES || '2', 10);
+    const concurrency = parseInt(process.env.SCRAPE_CONCURRENCY || '2', 10);
+    const timeoutMs = parseInt(process.env.SCRAPE_TIMEOUT_MS || '4000', 10);
 
-    console.log(`Starting crawl of ${normalizedUrl} (max ${maxPages} pages)`);
+    const startTime = Date.now();
+    console.log(`[${new Date().toISOString()}] Starting crawl of ${normalizedUrl} (max ${maxPages} pages, ${timeoutMs}ms timeout)`);
 
     // Crawl the website
     let crawlResult;
     try {
       crawlResult = await crawl(normalizedUrl, maxPages, concurrency, timeoutMs);
+      const crawlDuration = Date.now() - startTime;
+      console.log(`[${new Date().toISOString()}] Crawl completed in ${crawlDuration}ms`);
     } catch (error) {
-      console.error('Crawl error:', error);
+      const crawlDuration = Date.now() - startTime;
+      console.error(`Crawl error after ${crawlDuration}ms:`, error);
       return NextResponse.json(
         {
           error:
@@ -87,16 +92,21 @@ export async function POST(request: NextRequest) {
     console.log(`Crawled ${crawlResult.pages.length} pages, context length: ${crawlResult.context.length} chars`);
 
     // Generate content with Claude
+    const genStartTime = Date.now();
     let finalText;
     try {
+      console.log(`[${new Date().toISOString()}] Starting AI generation...`);
       finalText = await generateWithRefinement(
         crawlResult.context,
         topic,
         keywords,
         length
       );
+      const genDuration = Date.now() - genStartTime;
+      console.log(`[${new Date().toISOString()}] AI generation completed in ${genDuration}ms`);
     } catch (error) {
-      console.error('AI generation error:', error);
+      const genDuration = Date.now() - genStartTime;
+      console.error(`AI generation error after ${genDuration}ms:`, error);
       return NextResponse.json(
         {
           error:
@@ -126,6 +136,9 @@ export async function POST(request: NextRequest) {
     }
 
     // Return structured response
+    const totalDuration = Date.now() - startTime;
+    console.log(`[${new Date().toISOString()}] Total request completed in ${totalDuration}ms`);
+
     return NextResponse.json({
       metaTitle: parsed.metaTitle,
       metaDescription: parsed.metaDescription,
