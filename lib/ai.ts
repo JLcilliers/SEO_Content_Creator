@@ -5,10 +5,11 @@
 import Anthropic from '@anthropic-ai/sdk';
 import {
   SYSTEM_PROMPT,
+  buildComprehensivePrompt,
   buildGenerationPrompt,
   buildRefinePromptPass2,
 } from './prompts';
-import { wordCount, getLengthNote } from './normalize';
+import { wordCount } from './normalize';
 
 let anthropicClient: Anthropic | null = null;
 
@@ -75,10 +76,41 @@ async function callClaude(
 }
 
 /**
- * Generate SEO content with 2-pass refinement
- * Optimized for Vercel 60s timeout limit
+ * Generate SEO content with single comprehensive pass
+ * Optimized for Vercel 60s timeout - eliminates second API call
  */
 export async function generateWithRefinement(
+  context: string,
+  topic: string,
+  keywords: string[],
+  targetLength: number
+): Promise<string> {
+  const model = process.env.CLAUDE_MODEL || 'claude-sonnet-4-5-20250929';
+  const temperature = parseFloat(process.env.PROMPT_TEMPERATURE || '0.2');
+
+  const joinedKeywords = keywords.join(', ');
+
+  // Single comprehensive pass - publication-ready content
+  console.log('Generating publication-ready SEO content (single-pass)...');
+  const comprehensivePrompt = buildComprehensivePrompt(context, topic, joinedKeywords, targetLength);
+  const finalContent = await callClaude(comprehensivePrompt, SYSTEM_PROMPT, temperature, model);
+
+  // Extract content block to verify word count
+  const contentMatch = finalContent.match(/===CONTENT START===\s*([\s\S]*?)\s*===CONTENT END===/);
+  const contentText = contentMatch ? contentMatch[1] : finalContent;
+  const finalCount = wordCount(contentText);
+
+  console.log(`Generated content word count: ${finalCount} (target: ${targetLength})`);
+
+  return finalContent;
+}
+
+/**
+ * LEGACY: Generate SEO content with 2-pass refinement
+ * Kept as backup - use for very long content (>2000 words) if needed
+ * WARNING: May timeout on Vercel with 60s limit
+ */
+export async function generateWithRefinementTwoPass(
   context: string,
   topic: string,
   keywords: string[],
@@ -98,13 +130,18 @@ export async function generateWithRefinement(
   const contentMatch = draft1.match(/===CONTENT START===\s*([\s\S]*?)\s*===CONTENT END===/);
   const contentText = contentMatch ? contentMatch[1] : draft1;
   const currentCount1 = wordCount(contentText);
-  const lengthNote1 = getLengthNote(currentCount1, targetLength);
 
   console.log(`Draft 1 word count: ${currentCount1} (target: ${targetLength})`);
 
   // Pass 2: Comprehensive refinement and polish
   console.log('Pass 2: Refining and finalizing...');
-  const refinePrompt = buildRefinePromptPass2(context, draft1, targetLength, lengthNote1);
+  const lengthGuidance = currentCount1 < targetLength * 0.8
+    ? `Content is too short (${currentCount1} words). Expand sections with more details from site context to reach ${targetLength} words.`
+    : currentCount1 > targetLength * 1.2
+    ? `Content is too long (${currentCount1} words). Condense to approximately ${targetLength} words while keeping all essential information.`
+    : `Length is good (${currentCount1} words). Maintain depth while polishing.`;
+
+  const refinePrompt = buildRefinePromptPass2(context, draft1, targetLength, lengthGuidance);
   const finalDraft = await callClaude(refinePrompt, SYSTEM_PROMPT, temperature, model);
 
   const contentMatch2 = finalDraft.match(/===CONTENT START===\s*([\s\S]*?)\s*===CONTENT END===/);

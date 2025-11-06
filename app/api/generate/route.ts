@@ -60,10 +60,10 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Get environment variables with defaults (optimized for Vercel timeout limits)
-    const maxPages = parseInt(process.env.SCRAPE_MAX_PAGES || '5', 10);
-    const concurrency = parseInt(process.env.SCRAPE_CONCURRENCY || '5', 10);
-    const timeoutMs = parseInt(process.env.SCRAPE_TIMEOUT_MS || '8000', 10);
+    // Get environment variables with defaults (aggressively optimized for Vercel 60s timeout)
+    const maxPages = parseInt(process.env.SCRAPE_MAX_PAGES || '3', 10);
+    const concurrency = parseInt(process.env.SCRAPE_CONCURRENCY || '3', 10);
+    const timeoutMs = parseInt(process.env.SCRAPE_TIMEOUT_MS || '5000', 10);
 
     console.log(`Starting crawl of ${normalizedUrl} (max ${maxPages} pages)`);
 

@@ -27,13 +27,13 @@ FORMATTING RULES:
 - Bold important terms and key concepts
 - Create scannable, visually organized content`;
 
-export function buildGenerationPrompt(
+export function buildComprehensivePrompt(
   siteContext: string,
   topic: string,
   joinedKeywords: string,
   length: number
 ): string {
-  return `You are creating a comprehensive, SEO-optimized article for the website described below. Use ONLY the site context for all factual claims, examples, and specific information.
+  return `You are creating publication-ready, SEO-optimized content for the website described below. This is a comprehensive single-pass generation - produce final, polished content ready for immediate publishing. Use ONLY the site context for all factual claims, examples, and specific information.
 
 [SITE CONTEXT START]
 ${siteContext}
@@ -42,7 +42,7 @@ ${siteContext}
 CONTENT PARAMETERS:
 Topic: ${topic}
 Primary Keywords: ${joinedKeywords}
-Target Length: ${length} words (aim for comprehensive coverage - minimum 1500 words)
+Target Length: ${length} words (±5% acceptable for quality - prioritize comprehensive coverage)
 
 ADVANCED SEO OPTIMIZATION REQUIREMENTS:
 
@@ -54,10 +54,11 @@ ADVANCED SEO OPTIMIZATION REQUIREMENTS:
    - Use keywords only where they fit naturally - never force them
 
 2. HEADING STRUCTURE (Critical):
-   - H1: Question format OR benefit-focused title with primary keyword
+   - H1: Question format OR benefit-focused title with primary keyword front-loaded
    - Convert 40% of H2 headings to user-focused questions starting with: "Why", "What", "How", "When", "Who"
    - Each heading should promise a specific answer or insight
    - Use H3 subheadings to break down complex H2 sections
+   - Ensure logical hierarchy (H1 → H2 → H3) for optimal scannability
 
 3. CONTENT ARCHITECTURE:
 
@@ -95,13 +96,16 @@ ADVANCED SEO OPTIMIZATION REQUIREMENTS:
    - Add measurements or specifics when present in context
    - Use transitional phrases: "This means that...", "In other words...", "The key point is..."
    - Create relatable scenarios based on services/products mentioned in site context
+   - Ensure every sentence adds value - eliminate fluff entirely
 
 6. READABILITY OPTIMIZATION:
-   - Vary sentence length for natural flow
-   - Use active voice predominantly
+   - Vary sentence length for natural, conversational flow
+   - Use active voice predominantly (80%+)
    - Break up text with formatted elements every 200-300 words
-   - Bold key terms and important concepts
+   - Bold key terms and important concepts appropriately
    - Use short paragraphs (3-4 sentences max)
+   - Polish sentence flow for clarity and engagement
+   - Remove any redundancy, wordiness, or robotic phrasing
 
 OUTPUT FORMAT (MANDATORY):
 
@@ -197,13 +201,26 @@ Generate valid JSON-LD schema for both Article and FAQPage. Ensure all fields ar
 \`\`\`
 ===SCHEMA END===
 
+QUALITY ASSURANCE CHECKLIST (Verify Before Submission):
+✓ All facts verified against site context - no invented information
+✓ Primary keyword in first 100 words naturally
+✓ 40% of H2 headings are question-format
+✓ Keyword density 0.5-1.5% for primary term
+✓ Meta title 50-60 chars with keyword front-loaded
+✓ Meta description 150-160 chars with keyword and compelling CTA
+✓ Each H2 section is 200-300 words minimum
+✓ Question-based headings have direct answers in first sentence
+✓ Formatted elements present (lists, tables, blockquotes)
+✓ 5-7 FAQ questions with complete answers
+✓ Valid JSON-LD schema with accurate site context information
+✓ No em dashes anywhere - only hyphens
+✓ Natural, human language throughout
+✓ Every sentence adds value - no fluff
+✓ Clear next steps in conclusion based on site context
+✓ Content feels complete, authoritative, and publication-ready
+
 REMEMBER:
-- Use ONLY information from site context for facts
-- Create comprehensive, valuable content
-- Prioritize user value over keyword placement
-- Make content scannable and well-structured
-- Never use em dashes - only hyphens
-- Every section should answer a specific user question or need`;
+This is a single-pass generation - produce FINAL, POLISHED content ready for immediate publishing. Triple-check accuracy, optimize SEO elements, ensure readability, and verify all formatting. No revision pass will follow.`;
 }
 
 export function buildRefinePromptPass1(
