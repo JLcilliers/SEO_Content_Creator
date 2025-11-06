@@ -4,8 +4,10 @@ A production-ready Next.js application that generates perfectly optimized SEO co
 
 ## Features
 
+- **Background Job Processing**: No more timeouts! Uses Upstash Redis queue for reliable content generation
+- **Real-Time Progress Tracking**: See live updates as content is crawled, generated, and parsed
 - **Website Context Scraping**: Automatically crawls and extracts content from your website to understand your brand voice and facts
-- **AI-Powered Content Generation**: Uses Claude 3.5 Sonnet with a 3-pass refinement process for accuracy, tone, and SEO optimization
+- **AI-Powered Content Generation**: Uses Claude 3.5 Sonnet with high-quality generation for accuracy, tone, and SEO optimization
 - **Complete SEO Package**: Generates meta title, meta description, article content, FAQ, and JSON-LD schema
 - **Anti-Hallucination**: Strictly uses only facts from your scraped website context - no invented statistics or claims
 - **Proper Heading Structure**: Renders content with real HTML headings (H1-H4) for proper semantic structure
@@ -18,6 +20,7 @@ A production-ready Next.js application that generates perfectly optimized SEO co
 - **Framework**: Next.js 14 with App Router
 - **Language**: TypeScript
 - **AI**: Anthropic Claude API (@anthropic-ai/sdk)
+- **Queue**: Upstash Redis (background job processing)
 - **Scraping**: axios + cheerio
 - **Markdown**: react-markdown + remark-gfm
 - **Validation**: zod
@@ -28,6 +31,7 @@ A production-ready Next.js application that generates perfectly optimized SEO co
 
 - Node.js 18 or higher
 - Anthropic API key (get one at https://console.anthropic.com)
+- Upstash Redis account (get free tier at https://console.upstash.com/redis)
 - npm or yarn
 
 ## Local Setup
@@ -45,7 +49,15 @@ cd seo-content-creator
 npm install
 ```
 
-### 3. Configure environment variables
+### 3. Set up Upstash Redis
+
+1. Go to https://console.upstash.com/redis
+2. Create a free account
+3. Click "Create Database"
+4. Choose a name and region
+5. Copy the REST URL and REST Token
+
+### 4. Configure environment variables
 
 Copy the example environment file:
 
@@ -53,10 +65,15 @@ Copy the example environment file:
 cp .env.example .env.local
 ```
 
-Edit `.env.local` and add your Anthropic API key:
+Edit `.env.local` and add your credentials:
 
 ```env
+# Required: Anthropic API key
 ANTHROPIC_API_KEY=your_anthropic_api_key_here
+
+# Required: Upstash Redis credentials
+UPSTASH_REDIS_REST_URL=your_redis_rest_url_here
+UPSTASH_REDIS_REST_TOKEN=your_redis_rest_token_here
 ```
 
 Optional environment variables with their defaults:
@@ -64,28 +81,29 @@ Optional environment variables with their defaults:
 ```env
 # Claude model to use (default: claude-sonnet-4-5-20250929)
 CLAUDE_MODEL=claude-sonnet-4-5-20250929
-# Alternative if Sonnet 4.5 not available: claude-3-5-sonnet-20240620
 
-# Maximum pages to scrape (default: 10)
-SCRAPE_MAX_PAGES=10
+# Maximum pages to scrape (default: 5)
+SCRAPE_MAX_PAGES=5
 
 # Concurrent scraping requests (default: 3)
 SCRAPE_CONCURRENCY=3
 
-# Timeout per page in milliseconds (default: 12000)
-SCRAPE_TIMEOUT_MS=12000
+# Timeout per page in milliseconds (default: 8000)
+SCRAPE_TIMEOUT_MS=8000
 
 # AI temperature (default: 0.2)
 PROMPT_TEMPERATURE=0.2
 ```
 
-### 4. Run the development server
+### 5. Run the development server
 
 ```bash
 npm run dev
 ```
 
 Open http://localhost:3000 in your browser.
+
+**Note**: To process background jobs locally, you'll need to manually trigger the worker endpoint. In production, set up a cron job to call `/api/worker` every minute (see Deployment section).
 
 ## Deployment to Vercel
 
@@ -108,8 +126,17 @@ git push -u origin main
 5. Configure environment variables:
    - Click "Environment Variables"
    - Add `ANTHROPIC_API_KEY` with your API key
+   - Add `UPSTASH_REDIS_REST_URL` with your Upstash URL
+   - Add `UPSTASH_REDIS_REST_TOKEN` with your Upstash token
    - Add any other optional variables if needed
 6. Click "Deploy"
+7. After deployment, set up a cron job:
+   - Go to your project settings
+   - Navigate to "Cron Jobs" tab
+   - Create a new cron job:
+     - Path: `/api/worker`
+     - Schedule: `* * * * *` (every minute)
+     - This ensures background jobs are processed automatically
 
 ### Method 2: Deploy via Vercel CLI
 
@@ -127,15 +154,24 @@ Follow the prompts and add your environment variables when asked.
 2. **Enter Topic**: The subject of the article you want to generate (3-140 characters)
 3. **Enter Keywords**: Comma-separated keywords to include naturally (up to 12)
 4. **Set Length**: Target word count for the article (300-3000 words)
-5. **Click Generate**: Wait 1-2 minutes while the app:
-   - Crawls your website
-   - Extracts context
-   - Generates content in 3 refinement passes
-   - Returns optimized content
+5. **Click Generate**: The app creates a background job and shows real-time progress:
+   - **Crawling** (10-30%): Scraping your website for context
+   - **Generating** (40-80%): AI creating optimized content
+   - **Parsing** (90%): Formatting and structuring output
+   - **Completed** (100%): Content ready to use
+6. **View Results**: See your generated content with copy buttons for each section
 
 ## How It Works
 
-### 1. Website Scraping
+### 1. Job Queue System
+
+When you submit a request:
+1. **Instant Response**: Frontend creates a job and gets an ID immediately
+2. **Background Processing**: Worker processes the job without timeout limits
+3. **Real-Time Updates**: Frontend polls for status every 2 seconds
+4. **Progress Display**: You see exactly what stage the job is in
+
+### 2. Website Scraping
 
 - Starts from the main URL you provide
 - Extracts meaningful text content (headings, paragraphs, lists)
@@ -143,26 +179,16 @@ Follow the prompts and add your environment variables when asked.
 - Crawls up to `SCRAPE_MAX_PAGES` pages with smart prioritization
 - Builds a context string with all extracted content
 
-### 2. AI Content Generation (3-Pass Refinement)
+### 3. AI Content Generation
 
-**Pass 1: Initial Draft**
 - Uses the full site context
 - Generates meta title, meta description, article content, FAQ, and JSON-LD schema
 - Follows strict anti-hallucination rules
-
-**Pass 2: Refinement**
-- Reviews accuracy against site context
-- Adjusts tone to match site voice
-- Optimizes for SEO (meta lengths, keyword placement)
+- High-quality generation with 12k token limit
+- Optimizes for SEO (meta lengths, keyword placement, heading structure)
 - Adjusts length to match target ±5%
 
-**Pass 3: Final Polish**
-- Micro-edits for clarity and flow
-- Verifies heading hierarchy
-- Validates schema JSON
-- Final length check
-
-### 3. Content Output
+### 4. Content Output
 
 The app generates:
 

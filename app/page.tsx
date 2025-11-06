@@ -10,6 +10,8 @@ export default function Home() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [result, setResult] = useState<GenerateResponse | null>(null);
+  const [progress, setProgress] = useState(0);
+  const [progressMessage, setProgressMessage] = useState('');
 
   const handleSuccess = (data: GenerateResponse) => {
     setResult(data);
@@ -19,6 +21,11 @@ export default function Home() {
   const handleError = (errorMsg: string) => {
     setError(errorMsg);
     setResult(null);
+  };
+
+  const handleProgressUpdate = (newProgress: number, message: string) => {
+    setProgress(newProgress);
+    setProgressMessage(message);
   };
 
   return (
@@ -34,6 +41,7 @@ export default function Home() {
         onSuccess={handleSuccess}
         onError={handleError}
         onLoadingChange={setLoading}
+        onProgressUpdate={handleProgressUpdate}
       />
 
       {error && (
@@ -42,7 +50,7 @@ export default function Home() {
         </div>
       )}
 
-      {loading && <Loading />}
+      {loading && <Loading progress={progress} message={progressMessage} />}
 
       {result && !loading && (
         <ResultView

@@ -7,14 +7,70 @@ interface FormProps {
   onSuccess: (result: GenerateResponse) => void;
   onError: (error: string) => void;
   onLoadingChange: (loading: boolean) => void;
+  onProgressUpdate?: (progress: number, message: string) => void;
 }
 
-export default function Form({ onSuccess, onError, onLoadingChange }: FormProps) {
+export default function Form({ onSuccess, onError, onLoadingChange, onProgressUpdate }: FormProps) {
   const [url, setUrl] = useState('');
   const [topic, setTopic] = useState('');
   const [keywords, setKeywords] = useState('');
   const [length, setLength] = useState(1500);
   const [loading, setLoading] = useState(false);
+
+  // Poll job status
+  const pollJobStatus = async (jobId: string) => {
+    const maxAttempts = 150; // 5 minutes max (150 * 2s = 300s)
+    let attempts = 0;
+
+    while (attempts < maxAttempts) {
+      attempts++;
+
+      try {
+        const response = await fetch(`/api/jobs/${jobId}`);
+
+        if (!response.ok) {
+          throw new Error('Failed to check job status');
+        }
+
+        const job = await response.json();
+
+        // Update progress
+        if (onProgressUpdate) {
+          onProgressUpdate(job.progress || 0, job.message || 'Processing...');
+        }
+
+        // Check if completed
+        if (job.status === 'completed') {
+          if (!job.result) {
+            throw new Error('Job completed but no result returned');
+          }
+
+          // Transform result to match GenerateResponse interface
+          onSuccess({
+            metaTitle: job.result.metaTitle,
+            metaDescription: job.result.metaDescription,
+            contentMarkdown: job.result.contentMarkdown,
+            faqRaw: job.result.faqRaw,
+            schemaJsonString: job.result.schemaJsonString,
+            pages: job.result.pages,
+          });
+          return;
+        }
+
+        // Check if failed
+        if (job.status === 'failed') {
+          throw new Error(job.error || 'Job failed');
+        }
+
+        // Wait 2 seconds before next poll
+        await new Promise((resolve) => setTimeout(resolve, 2000));
+      } catch (error) {
+        throw error;
+      }
+    }
+
+    throw new Error('Job timed out after 5 minutes');
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -29,6 +85,7 @@ export default function Form({ onSuccess, onError, onLoadingChange }: FormProps)
     onError('');
 
     try {
+      // Step 1: Create job
       const response = await fetch('/api/generate', {
         method: 'POST',
         headers: {
@@ -43,15 +100,13 @@ export default function Form({ onSuccess, onError, onLoadingChange }: FormProps)
       });
 
       if (!response.ok) {
-        let errorMessage = 'Failed to generate content';
+        let errorMessage = 'Failed to create job';
         try {
           const text = await response.text();
-          // Try to parse as JSON first
           try {
             const error = JSON.parse(text);
             errorMessage = error.error || errorMessage;
           } catch {
-            // If not JSON, use the raw text
             errorMessage = text || errorMessage;
           }
         } catch {
@@ -60,13 +115,14 @@ export default function Form({ onSuccess, onError, onLoadingChange }: FormProps)
         throw new Error(errorMessage);
       }
 
-      let result: GenerateResponse;
-      try {
-        result = await response.json();
-      } catch (parseError) {
-        throw new Error('Failed to parse API response. The server may have returned invalid data.');
+      const { jobId } = await response.json();
+
+      if (!jobId) {
+        throw new Error('No job ID returned');
       }
-      onSuccess(result);
+
+      // Step 2: Poll for job completion
+      await pollJobStatus(jobId);
     } catch (error) {
       console.error('Error:', error);
       onError(error instanceof Error ? error.message : 'An unexpected error occurred');

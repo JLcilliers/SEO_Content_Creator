@@ -41,7 +41,7 @@ async function callClaude(
   try {
     const response = await client.messages.create({
       model,
-      max_tokens: 6000, // EXTREME reduction - absolute fastest generation possible
+      max_tokens: 12000, // Restored high-quality setting for background processing
       temperature,
       system,
       messages: [

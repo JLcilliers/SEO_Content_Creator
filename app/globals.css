@@ -166,9 +166,37 @@ body {
   }
 }
 
+.progress-bar-container {
+  width: 100%;
+  max-width: 500px;
+  height: 30px;
+  background: var(--color-bg-alt);
+  border: 2px solid var(--color-border);
+  border-radius: var(--border-radius);
+  margin: var(--spacing-lg) auto;
+  overflow: hidden;
+}
+
+.progress-bar {
+  height: 100%;
+  background: linear-gradient(90deg, var(--color-primary), var(--color-primary-hover));
+  transition: width 0.3s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 30px;
+}
+
+.progress-text {
+  color: white;
+  font-weight: 600;
+  font-size: 0.875rem;
+}
+
 .loading-text {
   font-size: 1.125rem;
   color: var(--color-text-light);
+  margin-top: var(--spacing-md);
 }
 
 /* Result View */
