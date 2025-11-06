@@ -30,16 +30,35 @@ export async function triggerWorker(baseUrl?: string): Promise<void> {
     const workerUrl = `${url}/api/worker`;
 
     console.log('[Worker Trigger] Triggering worker at:', workerUrl);
+    console.log('[Worker Trigger] Using fetch implementation:', typeof fetch);
 
-    // Fire and forget - don't wait for response
-    fetch(workerUrl, {
+    // Wait for the trigger to complete and check response
+    const response = await fetch(workerUrl, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
-    }).catch((error) => {
-      console.error('[Worker Trigger] Failed to trigger worker:', error);
+      // Add signal with timeout to prevent hanging
+      signal: AbortSignal.timeout(30000), // 30 second timeout
     });
+
+    console.log('[Worker Trigger] Response status:', response.status, response.statusText);
+
+    if (!response.ok) {
+      const text = await response.text();
+      console.error('[Worker Trigger] Worker returned error:', text);
+      throw new Error(`Worker returned status ${response.status}: ${text.substring(0, 200)}`);
+    }
+
+    const result = await response.json();
+    console.log('[Worker Trigger] Worker response:', result);
+  } catch (error) {
+    console.error('[Worker Trigger] Failed to trigger worker:', error);
+    if (error instanceof Error) {
+      console.error('[Worker Trigger] Error type:', error.name);
+      console.error('[Worker Trigger] Error message:', error.message);
+    }
+    throw error; // Propagate error to caller
   } finally {
     // Reset after cooldown
     setTimeout(() => {
@@ -72,6 +91,20 @@ export async function autoTriggerWorkerServer(): Promise<void> {
     ? `https://${process.env.VERCEL_URL}`
     : process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
 
-  // Trigger immediately
-  await triggerWorker(baseUrl);
+  console.log('[Worker Trigger Server] Starting trigger, base URL:', baseUrl);
+  console.log('[Worker Trigger Server] Environment: VERCEL_URL=', process.env.VERCEL_URL || 'not set');
+  console.log('[Worker Trigger Server] Environment: NEXT_PUBLIC_BASE_URL=', process.env.NEXT_PUBLIC_BASE_URL || 'not set');
+
+  try {
+    // Trigger immediately with await to catch errors
+    await triggerWorker(baseUrl);
+    console.log('[Worker Trigger Server] Trigger completed successfully');
+  } catch (error) {
+    console.error('[Worker Trigger Server] ERROR triggering worker:', error);
+    if (error instanceof Error) {
+      console.error('[Worker Trigger Server] Error message:', error.message);
+      console.error('[Worker Trigger Server] Error stack:', error.stack);
+    }
+    throw error; // Re-throw so calling code knows it failed
+  }
 }
