@@ -1,6 +1,10 @@
 # SEO Content Creator - Comprehensive Debugging Guide
 
-## Issue: Job Completes But No Results Display
+## Current Issue: Jobs Never Start Processing
+
+**UPDATE 2025-01-06**: The issue has been identified as **worker auto-trigger failure**. Jobs are created but never leave "pending" status. See [TRIGGER_INVESTIGATION.md](./TRIGGER_INVESTIGATION.md) for detailed diagnosis steps and latest fixes.
+
+## Historical Issue: Job Completes But No Results Display
 
 You're experiencing an issue where:
 - Database shows job status as "completed"
