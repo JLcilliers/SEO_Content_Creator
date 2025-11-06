@@ -1,8 +1,8 @@
 /**
- * Job Queue Management with Upstash Redis
+ * Job Queue Management with Supabase PostgreSQL
  */
 
-import { Redis } from '@upstash/redis';
+import { createClient, SupabaseClient } from '@supabase/supabase-js';
 
 // Job status enum
 export enum JobStatus {
@@ -39,28 +39,107 @@ export interface Job {
   error?: string;
 }
 
-let redis: Redis | null = null;
+// Database row type (matches SQL schema)
+interface JobRow {
+  id: string;
+  status: string;
+  progress: number;
+  message: string;
+  created_at: number;
+  updated_at: number;
+  input_url: string;
+  input_topic: string;
+  input_keywords: any; // JSONB
+  input_length: number;
+  result_meta_title: string | null;
+  result_meta_description: string | null;
+  result_content_markdown: string | null;
+  result_faq_raw: string | null;
+  result_schema_json_string: string | null;
+  result_pages: any | null; // JSONB
+  error: string | null;
+}
+
+let supabase: SupabaseClient | null = null;
 
 /**
- * Get or create Redis client
+ * Get or create Supabase client
  */
-export function getRedis(): Redis {
-  if (!redis) {
-    const url = process.env.UPSTASH_REDIS_REST_URL;
-    const token = process.env.UPSTASH_REDIS_REST_TOKEN;
+export function getSupabase(): SupabaseClient {
+  if (!supabase) {
+    const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
-    if (!url || !token) {
+    if (!url || !key) {
       throw new Error(
-        'UPSTASH_REDIS_REST_URL and UPSTASH_REDIS_REST_TOKEN must be set in environment variables'
+        'NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY must be set in environment variables'
       );
     }
 
-    redis = new Redis({
-      url,
-      token,
+    supabase = createClient(url, key, {
+      auth: {
+        autoRefreshToken: false,
+        persistSession: false,
+      },
     });
   }
-  return redis;
+  return supabase;
+}
+
+/**
+ * Convert database row to Job object
+ */
+function rowToJob(row: JobRow): Job {
+  return {
+    id: row.id,
+    status: row.status as JobStatus,
+    progress: row.progress,
+    message: row.message,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+    input: {
+      url: row.input_url,
+      topic: row.input_topic,
+      keywords: row.input_keywords,
+      length: row.input_length,
+    },
+    result: row.result_meta_title
+      ? {
+          metaTitle: row.result_meta_title!,
+          metaDescription: row.result_meta_description!,
+          contentMarkdown: row.result_content_markdown!,
+          faqRaw: row.result_faq_raw!,
+          schemaJsonString: row.result_schema_json_string!,
+          pages: row.result_pages!,
+        }
+      : undefined,
+    error: row.error || undefined,
+  };
+}
+
+/**
+ * Convert Job object to database row
+ */
+function jobToRow(job: Job): Partial<JobRow> {
+  return {
+    id: job.id,
+    status: job.status,
+    progress: job.progress,
+    message: job.message,
+    created_at: job.createdAt,
+    updated_at: job.updatedAt,
+    input_url: job.input.url,
+    input_topic: job.input.topic,
+    input_keywords: job.input.keywords,
+    input_length: job.input.length,
+    result_meta_title: job.result?.metaTitle || null,
+    result_meta_description: job.result?.metaDescription || null,
+    result_content_markdown: job.result?.contentMarkdown || null,
+    result_faq_raw: job.result?.faqRaw || null,
+    result_schema_json_string: job.result?.schemaJsonString || null,
+    result_pages: job.result?.pages || null,
+    error: job.error || null,
+  };
 }
 
 /**
@@ -74,7 +153,7 @@ export function generateJobId(): string {
  * Create a new job
  */
 export async function createJob(input: Job['input']): Promise<string> {
-  const client = getRedis();
+  const client = getSupabase();
   const jobId = generateJobId();
 
   const job: Job = {
@@ -87,11 +166,14 @@ export async function createJob(input: Job['input']): Promise<string> {
     input,
   };
 
-  // Store job with 24-hour expiration
-  await client.setex(`job:${jobId}`, 86400, JSON.stringify(job));
+  const row = jobToRow(job);
 
-  // Add to pending queue
-  await client.lpush('queue:pending', jobId);
+  const { error } = await client.from('jobs').insert(row);
+
+  if (error) {
+    console.error('[Queue] Failed to create job:', error);
+    throw new Error(`Failed to create job: ${error.message}`);
+  }
 
   console.log(`[Queue] Created job ${jobId}`);
   return jobId;
@@ -101,14 +183,24 @@ export async function createJob(input: Job['input']): Promise<string> {
  * Get job by ID
  */
 export async function getJob(jobId: string): Promise<Job | null> {
-  const client = getRedis();
-  const data = await client.get<string>(`job:${jobId}`);
+  const client = getSupabase();
 
-  if (!data) {
-    return null;
+  const { data, error } = await client
+    .from('jobs')
+    .select('*')
+    .eq('id', jobId)
+    .single();
+
+  if (error) {
+    if (error.code === 'PGRST116') {
+      // Not found
+      return null;
+    }
+    console.error('[Queue] Failed to get job:', error);
+    throw new Error(`Failed to get job: ${error.message}`);
   }
 
-  return JSON.parse(data);
+  return rowToJob(data as JobRow);
 }
 
 /**
@@ -118,7 +210,7 @@ export async function updateJob(
   jobId: string,
   updates: Partial<Omit<Job, 'id' | 'createdAt' | 'input'>>
 ): Promise<void> {
-  const client = getRedis();
+  const client = getSupabase();
   const job = await getJob(jobId);
 
   if (!job) {
@@ -131,7 +223,18 @@ export async function updateJob(
     updatedAt: Date.now(),
   };
 
-  await client.setex(`job:${jobId}`, 86400, JSON.stringify(updatedJob));
+  const row = jobToRow(updatedJob);
+
+  const { error } = await client
+    .from('jobs')
+    .update(row)
+    .eq('id', jobId);
+
+  if (error) {
+    console.error('[Queue] Failed to update job:', error);
+    throw new Error(`Failed to update job: ${error.message}`);
+  }
+
   console.log(`[Queue] Updated job ${jobId}: ${updates.status || 'progress'} ${updates.progress || ''}%`);
 }
 
@@ -139,9 +242,27 @@ export async function updateJob(
  * Get next pending job
  */
 export async function getNextPendingJob(): Promise<string | null> {
-  const client = getRedis();
-  const jobId = await client.rpop('queue:pending');
-  return jobId;
+  const client = getSupabase();
+
+  // Get oldest pending job and mark it as processing
+  const { data, error } = await client
+    .from('jobs')
+    .select('id')
+    .eq('status', 'pending')
+    .order('created_at', { ascending: true })
+    .limit(1)
+    .single();
+
+  if (error) {
+    if (error.code === 'PGRST116') {
+      // No pending jobs
+      return null;
+    }
+    console.error('[Queue] Failed to get next pending job:', error);
+    return null;
+  }
+
+  return data.id;
 }
 
 /**

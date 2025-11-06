@@ -4,7 +4,7 @@ A production-ready Next.js application that generates perfectly optimized SEO co
 
 ## Features
 
-- **Background Job Processing**: No more timeouts! Uses Upstash Redis queue for reliable content generation
+- **Background Job Processing**: No more timeouts! Uses Supabase PostgreSQL queue for reliable content generation
 - **Real-Time Progress Tracking**: See live updates as content is crawled, generated, and parsed
 - **Website Context Scraping**: Automatically crawls and extracts content from your website to understand your brand voice and facts
 - **AI-Powered Content Generation**: Uses Claude 3.5 Sonnet with high-quality generation for accuracy, tone, and SEO optimization
@@ -20,7 +20,7 @@ A production-ready Next.js application that generates perfectly optimized SEO co
 - **Framework**: Next.js 14 with App Router
 - **Language**: TypeScript
 - **AI**: Anthropic Claude API (@anthropic-ai/sdk)
-- **Queue**: Upstash Redis (background job processing)
+- **Database & Queue**: Supabase PostgreSQL (background job processing)
 - **Scraping**: axios + cheerio
 - **Markdown**: react-markdown + remark-gfm
 - **Validation**: zod
@@ -31,7 +31,7 @@ A production-ready Next.js application that generates perfectly optimized SEO co
 
 - Node.js 18 or higher
 - Anthropic API key (get one at https://console.anthropic.com)
-- Upstash Redis account (get free tier at https://console.upstash.com/redis)
+- Supabase account (get free tier at https://supabase.com)
 - npm or yarn
 
 ## Local Setup
@@ -49,13 +49,16 @@ cd seo-content-creator
 npm install
 ```
 
-### 3. Set up Upstash Redis
+### 3. Set up Supabase Database
 
-1. Go to https://console.upstash.com/redis
-2. Create a free account
-3. Click "Create Database"
-4. Choose a name and region
-5. Copy the REST URL and REST Token
+1. Go to https://supabase.com/dashboard
+2. Create a new project (or use existing)
+3. Go to **SQL Editor**
+4. Copy the contents of `supabase-schema.sql` and run it
+5. Go to **Settings** → **API**
+6. Copy:
+   - **Project URL** (starts with https://)
+   - **service_role secret** key (NOT the anon public key)
 
 ### 4. Configure environment variables
 
@@ -71,9 +74,9 @@ Edit `.env.local` and add your credentials:
 # Required: Anthropic API key
 ANTHROPIC_API_KEY=your_anthropic_api_key_here
 
-# Required: Upstash Redis credentials
-UPSTASH_REDIS_REST_URL=your_redis_rest_url_here
-UPSTASH_REDIS_REST_TOKEN=your_redis_rest_token_here
+# Required: Supabase credentials
+NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
+SUPABASE_SERVICE_ROLE_KEY=your_service_role_secret_key_here
 ```
 
 Optional environment variables with their defaults:
@@ -126,8 +129,8 @@ git push -u origin main
 5. Configure environment variables:
    - Click "Environment Variables"
    - Add `ANTHROPIC_API_KEY` with your API key
-   - Add `UPSTASH_REDIS_REST_URL` with your Upstash URL
-   - Add `UPSTASH_REDIS_REST_TOKEN` with your Upstash token
+   - Add `NEXT_PUBLIC_SUPABASE_URL` with your Supabase project URL
+   - Add `SUPABASE_SERVICE_ROLE_KEY` with your service role secret
    - Add any other optional variables if needed
 6. Click "Deploy"
 7. After deployment, set up a cron job:
