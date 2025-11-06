@@ -19,13 +19,15 @@ CONTENT QUALITY STANDARDS:
 - Keep sentences under 20 words when possible
 - Limit paragraphs to 3-4 sentences
 - Every sentence must provide real value - no fluff
+- Prioritize E-E-A-T: Experience, Expertise, Authoritativeness, Trustworthiness
 
 FORMATTING RULES:
 - Use markdown for all headings (H1-H4) and formatting
 - Global rule: NEVER use an em dash - always use a normal hyphen instead
 - Use proper markdown tables, lists, and blockquotes
 - Bold important terms and key concepts
-- Create scannable, visually organized content`;
+- Create scannable, visually organized content
+- Use internal linking opportunities where relevant (based on site context)`;
 
 export function buildComprehensivePrompt(
   siteContext: string,

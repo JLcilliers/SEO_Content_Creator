@@ -69,6 +69,14 @@ export async function POST(request: NextRequest) {
 
     console.log(`[API] Created job ${jobId} for ${normalizedUrl}`);
 
+    // Auto-trigger worker to process the job immediately
+    // This ensures jobs are processed even without cron (useful for local dev)
+    const { autoTriggerWorkerServer } = await import('@/lib/worker-trigger');
+    autoTriggerWorkerServer().catch((error) => {
+      console.error('[API] Failed to trigger worker:', error);
+      // Don't fail the request if worker trigger fails
+    });
+
     // Return job ID immediately
     return NextResponse.json({
       jobId,

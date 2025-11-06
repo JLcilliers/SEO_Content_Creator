@@ -4,7 +4,17 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { getNextPendingJob, updateJob, completeJob, failJob, JobStatus } from '@/lib/queue';
+import {
+  getNextPendingJob,
+  updateJob,
+  completeJob,
+  failJob,
+  incrementJobAttempt,
+  resetStuckJobs,
+  cleanupOldJobs,
+  hasPendingJobs,
+  JobStatus,
+} from '@/lib/queue';
 import { crawl } from '@/lib/scrape';
 import { generateWithRefinement } from '@/lib/ai';
 import { parseSections } from '@/lib/parse';
@@ -15,6 +25,10 @@ export async function POST(request: NextRequest) {
   const startTime = Date.now();
 
   try {
+    // Perform maintenance tasks before processing
+    await resetStuckJobs(600000); // Reset jobs stuck for 10+ minutes
+    await cleanupOldJobs(86400000); // Cleanup jobs older than 24 hours
+
     // Get next job from queue
     const jobId = await getNextPendingJob();
 
@@ -33,6 +47,11 @@ export async function POST(request: NextRequest) {
     }
 
     const { url, topic, keywords, length } = job.input;
+
+    // Increment attempt counter
+    await incrementJobAttempt(jobId);
+
+    console.log(`[Worker] Job ${jobId}: Attempt ${job.attempts + 1}, Processing...`);
 
     try {
       // Stage 1: Crawling
@@ -109,19 +128,56 @@ export async function POST(request: NextRequest) {
       });
     } catch (error) {
       console.error(`[Worker] Job ${jobId} failed:`, error);
-      await failJob(
-        jobId,
-        error instanceof Error ? error.message : 'Unknown error occurred'
-      );
 
-      return NextResponse.json(
-        {
-          success: false,
+      // Build detailed error message
+      let errorMessage = 'Unknown error occurred';
+      if (error instanceof Error) {
+        errorMessage = error.message;
+        // Include stack trace in logs for debugging
+        console.error(`[Worker] Job ${jobId} error stack:`, error.stack);
+      }
+
+      // Check if we should retry
+      const MAX_RETRIES = 3;
+      if (job.attempts + 1 < MAX_RETRIES) {
+        // Reset to pending for retry
+        await updateJob(jobId, {
+          status: JobStatus.PENDING,
+          progress: 0,
+          message: `Retry attempt ${job.attempts + 2}/${MAX_RETRIES} - Error: ${errorMessage.substring(0, 100)}`,
+        });
+
+        console.log(`[Worker] Job ${jobId}: Queued for retry (attempt ${job.attempts + 2}/${MAX_RETRIES})`);
+
+        return NextResponse.json(
+          {
+            success: false,
+            jobId,
+            error: errorMessage,
+            willRetry: true,
+            nextAttempt: job.attempts + 2,
+          },
+          { status: 500 }
+        );
+      } else {
+        // Max retries reached, mark as failed
+        await failJob(
           jobId,
-          error: error instanceof Error ? error.message : 'Unknown error',
-        },
-        { status: 500 }
-      );
+          `Failed after ${MAX_RETRIES} attempts. Last error: ${errorMessage}`
+        );
+
+        console.log(`[Worker] Job ${jobId}: Failed after ${MAX_RETRIES} attempts`);
+
+        return NextResponse.json(
+          {
+            success: false,
+            jobId,
+            error: `Failed after ${MAX_RETRIES} attempts. Last error: ${errorMessage}`,
+            willRetry: false,
+          },
+          { status: 500 }
+        );
+      }
     }
   } catch (error) {
     console.error('[Worker] Unexpected error:', error);

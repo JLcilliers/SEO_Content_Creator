@@ -22,6 +22,8 @@ export interface Job {
   message: string;
   createdAt: number;
   updatedAt: number;
+  attempts: number; // Number of processing attempts
+  lastAttemptAt?: number; // Timestamp of last attempt
   input: {
     url: string;
     topic: string;
@@ -47,6 +49,8 @@ interface JobRow {
   message: string;
   created_at: number;
   updated_at: number;
+  attempts: number;
+  last_attempt_at: number | null;
   input_url: string;
   input_topic: string;
   input_keywords: any; // JSONB
@@ -97,6 +101,8 @@ function rowToJob(row: JobRow): Job {
     message: row.message,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
+    attempts: row.attempts || 0,
+    lastAttemptAt: row.last_attempt_at || undefined,
     input: {
       url: row.input_url,
       topic: row.input_topic,
@@ -128,6 +134,8 @@ function jobToRow(job: Job): Partial<JobRow> {
     message: job.message,
     created_at: job.createdAt,
     updated_at: job.updatedAt,
+    attempts: job.attempts || 0,
+    last_attempt_at: job.lastAttemptAt || null,
     input_url: job.input.url,
     input_topic: job.input.topic,
     input_keywords: job.input.keywords,
@@ -163,6 +171,7 @@ export async function createJob(input: Job['input']): Promise<string> {
     message: 'Job created, waiting to start...',
     createdAt: Date.now(),
     updatedAt: Date.now(),
+    attempts: 0,
     input,
   };
 
@@ -287,4 +296,121 @@ export async function failJob(jobId: string, error: string): Promise<void> {
     message: 'Job failed',
     error,
   });
+}
+
+/**
+ * Increment job attempt counter and update last attempt timestamp
+ */
+export async function incrementJobAttempt(jobId: string): Promise<void> {
+  const job = await getJob(jobId);
+  if (!job) {
+    throw new Error(`Job ${jobId} not found`);
+  }
+
+  await updateJob(jobId, {
+    attempts: job.attempts + 1,
+    lastAttemptAt: Date.now(),
+  });
+}
+
+/**
+ * Reset stuck jobs (jobs that are processing but haven't been updated in a while)
+ * This handles cases where worker crashed or was killed
+ */
+export async function resetStuckJobs(stuckThresholdMs: number = 600000): Promise<number> {
+  const client = getSupabase();
+  const cutoffTime = Date.now() - stuckThresholdMs;
+
+  // Find jobs that are "in progress" but haven't been updated recently
+  const { data, error } = await client
+    .from('jobs')
+    .select('id, attempts')
+    .in('status', ['crawling', 'generating', 'parsing'])
+    .lt('updated_at', cutoffTime);
+
+  if (error) {
+    console.error('[Queue] Failed to find stuck jobs:', error);
+    return 0;
+  }
+
+  if (!data || data.length === 0) {
+    return 0;
+  }
+
+  console.log(`[Queue] Found ${data.length} stuck jobs, resetting...`);
+
+  // Reset each stuck job
+  let resetCount = 0;
+  for (const row of data) {
+    const MAX_RETRIES = 3;
+
+    if (row.attempts >= MAX_RETRIES) {
+      // Max retries reached, mark as failed
+      await failJob(
+        row.id,
+        `Job exceeded maximum retry attempts (${MAX_RETRIES}). Last known status: processing.`
+      );
+    } else {
+      // Reset to pending for retry
+      await updateJob(row.id, {
+        status: JobStatus.PENDING,
+        progress: 0,
+        message: `Retry attempt ${row.attempts + 1}/${MAX_RETRIES} - Previous attempt timed out`,
+      });
+    }
+    resetCount++;
+  }
+
+  console.log(`[Queue] Reset ${resetCount} stuck jobs`);
+  return resetCount;
+}
+
+/**
+ * Clean up old completed and failed jobs
+ */
+export async function cleanupOldJobs(maxAgeMs: number = 86400000): Promise<number> {
+  const client = getSupabase();
+  const cutoffTime = Date.now() - maxAgeMs;
+
+  const { error, count } = await client
+    .from('jobs')
+    .delete()
+    .in('status', ['completed', 'failed'])
+    .lt('updated_at', cutoffTime);
+
+  if (error) {
+    console.error('[Queue] Failed to cleanup old jobs:', error);
+    return 0;
+  }
+
+  if (count && count > 0) {
+    console.log(`[Queue] Cleaned up ${count} old jobs`);
+  }
+
+  return count || 0;
+}
+
+/**
+ * Check if there are any pending jobs in the queue
+ */
+export async function hasPendingJobs(): Promise<boolean> {
+  const client = getSupabase();
+
+  const { data, error } = await client
+    .from('jobs')
+    .select('id')
+    .eq('status', 'pending')
+    .limit(1)
+    .single();
+
+  if (error) {
+    if (error.code === 'PGRST116') {
+      // No pending jobs
+      return false;
+    }
+    console.error('[Queue] Failed to check for pending jobs:', error);
+    return false;
+  }
+
+  return !!data;
 }

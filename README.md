@@ -5,11 +5,16 @@ A production-ready Next.js application that generates perfectly optimized SEO co
 ## Features
 
 - **Background Job Processing**: No more timeouts! Uses Supabase PostgreSQL queue for reliable content generation
+- **Auto-Triggered Workers**: Jobs are automatically processed even without cron (works in local development)
+- **Automatic Retry Logic**: Failed jobs retry up to 3 times automatically with intelligent error handling
+- **Job Cleanup**: Automatically removes old completed/failed jobs to keep database clean
+- **Stuck Job Recovery**: Detects and recovers jobs that timeout or crash mid-processing
 - **Real-Time Progress Tracking**: See live updates as content is crawled, generated, and parsed
 - **Website Context Scraping**: Automatically crawls and extracts content from your website to understand your brand voice and facts
-- **AI-Powered Content Generation**: Uses Claude 3.5 Sonnet with high-quality generation for accuracy, tone, and SEO optimization
+- **AI-Powered Content Generation**: Uses Claude Sonnet 4.5 with high-quality generation for accuracy, tone, and SEO optimization
 - **Complete SEO Package**: Generates meta title, meta description, article content, FAQ, and JSON-LD schema
 - **Anti-Hallucination**: Strictly uses only facts from your scraped website context - no invented statistics or claims
+- **E-E-A-T Optimized**: Content follows Google's Experience, Expertise, Authoritativeness, Trustworthiness guidelines
 - **Proper Heading Structure**: Renders content with real HTML headings (H1-H4) for proper semantic structure
 - **Length Control**: Enforces target word count within ±5% accuracy
 - **Source Transparency**: Shows which pages were used to generate the content
@@ -170,9 +175,12 @@ Follow the prompts and add your environment variables when asked.
 
 When you submit a request:
 1. **Instant Response**: Frontend creates a job and gets an ID immediately
-2. **Background Processing**: Worker processes the job without timeout limits
-3. **Real-Time Updates**: Frontend polls for status every 2 seconds
-4. **Progress Display**: You see exactly what stage the job is in
+2. **Auto-Triggered Worker**: Worker automatically starts processing (no waiting for cron)
+3. **Background Processing**: Worker processes the job with 5-minute timeout limit
+4. **Real-Time Updates**: Frontend polls for status every 2 seconds
+5. **Progress Display**: You see exactly what stage the job is in
+6. **Automatic Retry**: If job fails, it automatically retries up to 3 times
+7. **Stuck Job Recovery**: Jobs stuck mid-processing are automatically detected and recovered
 
 ### 2. Website Scraping
 
@@ -252,6 +260,35 @@ The app enforces strict rules to prevent AI hallucinations:
 
 ## Troubleshooting
 
+### Jobs timing out or stuck in "pending" status
+
+**Solution**: This has been fixed in the latest version! The fixes include:
+
+1. **Auto-triggered workers**: Jobs now automatically trigger the worker endpoint
+2. **Retry mechanism**: Failed jobs automatically retry up to 3 times
+3. **Stuck job recovery**: Jobs that timeout are detected and recovered
+4. **Database migration required**: If you're upgrading, run the migration:
+
+```sql
+-- Run this in your Supabase SQL Editor
+-- File: supabase-migration.sql
+```
+
+**For existing users**:
+1. Run `supabase-migration.sql` in your Supabase SQL Editor
+2. Redeploy your application
+3. Jobs will now process automatically without timeouts
+
+**Local Development**:
+- Workers are automatically triggered when jobs are created
+- No need to manually call `/api/worker` endpoint
+- Jobs process immediately in the background
+
+**Production (Vercel)**:
+- Cron job still runs every minute as backup
+- Auto-trigger ensures jobs start immediately
+- 5-minute worker timeout is sufficient for most content
+
 ### No content extracted from website
 
 - The site may be JavaScript-rendered (SPA). The scraper works best with server-rendered HTML.
@@ -260,6 +297,7 @@ The app enforces strict rules to prevent AI hallucinations:
 ### API rate limits
 
 - Anthropic has rate limits. If you hit them, wait a few moments and try again.
+- The retry mechanism will automatically retry failed jobs
 - Consider reducing `SCRAPE_MAX_PAGES` to reduce context size and API calls.
 
 ### Content too short or too long
@@ -272,6 +310,14 @@ The app enforces strict rules to prevent AI hallucinations:
 - Ensure all dependencies are installed: `npm install`
 - Check that your Node.js version is 18+
 - Clear `.next` folder and rebuild: `rm -rf .next && npm run build`
+
+### Verifying fixes are working
+
+Check your browser console or server logs for:
+- `[Worker Trigger] Triggering worker at:` - Auto-trigger is working
+- `[Worker] Processing job` - Worker is processing jobs
+- `[Worker] Job completed in Xms` - Jobs completing successfully
+- `[Queue] Reset X stuck jobs` - Stuck job recovery is working
 
 ## Development
 

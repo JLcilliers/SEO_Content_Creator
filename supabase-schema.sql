@@ -8,6 +8,8 @@ CREATE TABLE IF NOT EXISTS jobs (
   message TEXT NOT NULL,
   created_at BIGINT NOT NULL,
   updated_at BIGINT NOT NULL,
+  attempts INTEGER NOT NULL DEFAULT 0,
+  last_attempt_at BIGINT,
 
   -- Input data
   input_url TEXT NOT NULL,
