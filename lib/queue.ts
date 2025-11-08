@@ -210,6 +210,7 @@ export async function createJob(input: Job['input']): Promise<string> {
 
 /**
  * Get job by ID
+ * IMPORTANT: Uses maybeSingle() to avoid PostgREST caching issues
  */
 export async function getJob(jobId: string): Promise<Job | null> {
   const client = getSupabase();
@@ -218,15 +219,15 @@ export async function getJob(jobId: string): Promise<Job | null> {
     .from('jobs')
     .select('*')
     .eq('id', jobId)
-    .single();
+    .maybeSingle();
 
   if (error) {
-    if (error.code === 'PGRST116') {
-      // Not found
-      return null;
-    }
     console.error('[Queue] Failed to get job:', error);
     throw new Error(`Failed to get job: ${error.message}`);
+  }
+
+  if (!data) {
+    return null;
   }
 
   return rowToJob(data as JobRow);
