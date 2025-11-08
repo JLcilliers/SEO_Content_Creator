@@ -282,16 +282,18 @@ export async function updateJob(
 
 /**
  * Get next pending job
- * IMPORTANT: Uses maybeSingle() to avoid PostgREST caching issues
+ * IMPORTANT: Uses RPC or timestamp filter to avoid PostgREST query caching
  */
 export async function getNextPendingJob(): Promise<string | null> {
   const client = getSupabase();
 
-  // Get oldest pending job
+  // Use timestamp filter to prevent query caching - queries with different parameters aren't cached together
+  const now = Date.now();
   const { data, error } = await client
     .from('jobs')
     .select('id')
     .eq('status', 'pending')
+    .lt('created_at', now + 1000) // Add timestamp filter to bust cache (will match all jobs created before now+1s)
     .order('created_at', { ascending: true })
     .limit(1)
     .maybeSingle();
@@ -438,15 +440,18 @@ export async function cleanupOldJobs(maxAgeMs: number = 86400000): Promise<numbe
 
 /**
  * Check if there are any pending jobs in the queue
- * IMPORTANT: Uses maybeSingle() to avoid PostgREST caching issues
+ * IMPORTANT: Uses timestamp filter to avoid PostgREST query caching
  */
 export async function hasPendingJobs(): Promise<boolean> {
   const client = getSupabase();
 
+  // Use timestamp filter to prevent query caching - queries with different parameters aren't cached together
+  const now = Date.now();
   const { data, error} = await client
     .from('jobs')
     .select('id')
     .eq('status', 'pending')
+    .lt('created_at', now + 1000) // Add timestamp filter to bust cache (will match all jobs created before now+1s)
     .limit(1)
     .maybeSingle();
 
