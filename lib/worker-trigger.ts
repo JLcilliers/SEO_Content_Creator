@@ -32,12 +32,21 @@ export async function triggerWorker(baseUrl?: string): Promise<void> {
     console.log('[Worker Trigger] Triggering worker at:', workerUrl);
     console.log('[Worker Trigger] Using fetch implementation:', typeof fetch);
 
+    // Build headers with optional bypass token for Vercel deployment protection
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+    };
+
+    // Add bypass header if running on Vercel with protection enabled
+    if (typeof process !== 'undefined' && process.env?.VERCEL_AUTOMATION_BYPASS_SECRET) {
+      headers['x-vercel-protection-bypass'] = process.env.VERCEL_AUTOMATION_BYPASS_SECRET;
+      console.log('[Worker Trigger] Added deployment protection bypass header');
+    }
+
     // Wait for the trigger to complete and check response
     const response = await fetch(workerUrl, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
+      headers,
       // Add signal with timeout to prevent hanging
       signal: AbortSignal.timeout(30000), // 30 second timeout
     });
