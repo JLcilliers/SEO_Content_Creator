@@ -282,25 +282,26 @@ export async function updateJob(
 
 /**
  * Get next pending job
+ * IMPORTANT: Uses maybeSingle() to avoid PostgREST caching issues
  */
 export async function getNextPendingJob(): Promise<string | null> {
   const client = getSupabase();
 
-  // Get oldest pending job and mark it as processing
+  // Get oldest pending job
   const { data, error } = await client
     .from('jobs')
     .select('id')
     .eq('status', 'pending')
     .order('created_at', { ascending: true })
     .limit(1)
-    .single();
+    .maybeSingle();
 
   if (error) {
-    if (error.code === 'PGRST116') {
-      // No pending jobs
-      return null;
-    }
     console.error('[Queue] Failed to get next pending job:', error);
+    return null;
+  }
+
+  if (!data) {
     return null;
   }
 
@@ -437,22 +438,19 @@ export async function cleanupOldJobs(maxAgeMs: number = 86400000): Promise<numbe
 
 /**
  * Check if there are any pending jobs in the queue
+ * IMPORTANT: Uses maybeSingle() to avoid PostgREST caching issues
  */
 export async function hasPendingJobs(): Promise<boolean> {
   const client = getSupabase();
 
-  const { data, error } = await client
+  const { data, error} = await client
     .from('jobs')
     .select('id')
     .eq('status', 'pending')
     .limit(1)
-    .single();
+    .maybeSingle();
 
   if (error) {
-    if (error.code === 'PGRST116') {
-      // No pending jobs
-      return false;
-    }
     console.error('[Queue] Failed to check for pending jobs:', error);
     return false;
   }
