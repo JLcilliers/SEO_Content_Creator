@@ -235,29 +235,41 @@ export async function getJob(jobId: string): Promise<Job | null> {
 
 /**
  * Update job status and progress
+ * IMPORTANT: Does NOT read existing job to avoid cache issues - directly updates fields
  */
 export async function updateJob(
   jobId: string,
   updates: Partial<Omit<Job, 'id' | 'createdAt' | 'input'>>
 ): Promise<void> {
   const client = getSupabase();
-  const job = await getJob(jobId);
 
-  if (!job) {
-    throw new Error(`Job ${jobId} not found`);
-  }
-
-  const updatedJob: Job = {
-    ...job,
-    ...updates,
-    updatedAt: Date.now(),
+  // Build partial row update directly without reading existing job
+  // This avoids cache issues and race conditions
+  const rowUpdates: Partial<JobRow> = {
+    updated_at: Date.now(),
   };
 
-  const row = jobToRow(updatedJob);
+  // Map Job updates to database row format
+  if (updates.status !== undefined) rowUpdates.status = updates.status;
+  if (updates.progress !== undefined) rowUpdates.progress = updates.progress;
+  if (updates.message !== undefined) rowUpdates.message = updates.message;
+  if (updates.attempts !== undefined) rowUpdates.attempts = updates.attempts;
+  if (updates.lastAttemptAt !== undefined) rowUpdates.last_attempt_at = updates.lastAttemptAt;
+  if (updates.error !== undefined) rowUpdates.error = updates.error;
+
+  // Handle result object fields
+  if (updates.result !== undefined) {
+    rowUpdates.result_meta_title = updates.result.metaTitle;
+    rowUpdates.result_meta_description = updates.result.metaDescription;
+    rowUpdates.result_content_markdown = updates.result.contentMarkdown;
+    rowUpdates.result_faq_raw = updates.result.faqRaw;
+    rowUpdates.result_schema_json_string = updates.result.schemaJsonString;
+    rowUpdates.result_pages = updates.result.pages;
+  }
 
   const { error } = await client
     .from('jobs')
-    .update(row)
+    .update(rowUpdates)
     .eq('id', jobId);
 
   if (error) {
