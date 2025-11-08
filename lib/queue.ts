@@ -68,26 +68,33 @@ let supabase: SupabaseClient | null = null;
 
 /**
  * Get or create Supabase client
+ * IMPORTANT: Creates a fresh client each time to avoid caching issues in serverless
  */
 export function getSupabase(): SupabaseClient {
-  if (!supabase) {
-    const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-    const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
-    if (!url || !key) {
-      throw new Error(
-        'NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY must be set in environment variables'
-      );
-    }
-
-    supabase = createClient(url, key, {
-      auth: {
-        autoRefreshToken: false,
-        persistSession: false,
-      },
-    });
+  if (!url || !key) {
+    throw new Error(
+      'NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY must be set in environment variables'
+    );
   }
-  return supabase;
+
+  // Always create a fresh client to avoid stale cache in serverless environment
+  return createClient(url, key, {
+    auth: {
+      autoRefreshToken: false,
+      persistSession: false,
+    },
+    db: {
+      schema: 'public',
+    },
+    global: {
+      headers: {
+        'Cache-Control': 'no-cache, no-store, must-revalidate',
+      },
+    },
+  });
 }
 
 /**
