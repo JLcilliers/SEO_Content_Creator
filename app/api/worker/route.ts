@@ -25,18 +25,66 @@ export async function POST(request: NextRequest) {
   const startTime = Date.now();
 
   try {
-    // Perform maintenance tasks before processing
-    await resetStuckJobs(600000); // Reset jobs stuck for 10+ minutes
-    await cleanupOldJobs(86400000); // Cleanup jobs older than 24 hours
+    // Check for forced job processing
+    const forceJobId = request.headers.get('x-force-job-id');
+    let requestBody: any = {};
 
-    // Get next job from queue
-    const jobId = await getNextPendingJob();
-
-    if (!jobId) {
-      return NextResponse.json({ message: 'No pending jobs' });
+    try {
+      const text = await request.text();
+      if (text) {
+        requestBody = JSON.parse(text);
+      }
+    } catch {
+      // Ignore JSON parse errors
     }
 
-    console.log(`[Worker] Processing job ${jobId}`);
+    const forcedJobIdFromBody = requestBody?.forceJobId;
+    const finalForceJobId = forceJobId || forcedJobIdFromBody;
+
+    console.log('='.repeat(60));
+    console.log('[Worker] Worker endpoint called at', new Date().toISOString());
+    console.log('[Worker] Force job ID:', finalForceJobId || 'NONE (normal queue processing)');
+    console.log('[Worker] Trigger source:', request.headers.get('x-trigger-source') || requestBody?.source || 'unknown');
+    console.log('[Worker] Environment check:', {
+      hasSupabaseUrl: !!process.env.NEXT_PUBLIC_SUPABASE_URL,
+      hasSupabaseKey: !!process.env.SUPABASE_SERVICE_ROLE_KEY,
+      hasAnthropicKey: !!process.env.ANTHROPIC_API_KEY,
+      nodeEnv: process.env.NODE_ENV
+    });
+    console.log('='.repeat(60));
+
+    // Perform maintenance tasks before processing
+    const stuckCount = await resetStuckJobs(600000); // Reset jobs stuck for 10+ minutes
+    const cleanedCount = await cleanupOldJobs(86400000); // Cleanup jobs older than 24 hours
+
+    if (stuckCount > 0) {
+      console.log(`[Worker] Reset ${stuckCount} stuck jobs`);
+    }
+    if (cleanedCount > 0) {
+      console.log(`[Worker] Cleaned up ${cleanedCount} old jobs`);
+    }
+
+    // Get next job from queue (or use forced job)
+    let jobId: string | null;
+
+    if (finalForceJobId) {
+      // Force process specific job
+      console.log(`[Worker] FORCE MODE: Processing specific job: ${finalForceJobId}`);
+      jobId = finalForceJobId;
+    } else {
+      // Normal queue processing
+      jobId = await getNextPendingJob();
+    }
+
+    if (!jobId) {
+      console.log('[Worker] No pending jobs in queue');
+      return NextResponse.json({
+        message: 'No pending jobs',
+        timestamp: new Date().toISOString()
+      });
+    }
+
+    console.log(`[Worker] Processing job ${jobId} (forced: ${!!finalForceJobId})`);
 
     // Get job details
     const { getJob } = await import('@/lib/queue');

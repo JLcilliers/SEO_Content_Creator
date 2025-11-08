@@ -74,21 +74,23 @@ export async function POST(request: NextRequest) {
     console.log('[API] Attempting to auto-trigger worker...');
     const { autoTriggerWorkerServer } = await import('@/lib/worker-trigger');
 
-    try {
-      await autoTriggerWorkerServer();
-      console.log('[API] Worker auto-trigger succeeded');
-    } catch (error) {
-      console.error('[API] Worker auto-trigger FAILED:', error);
-      if (error instanceof Error) {
-        console.error('[API] Trigger error details:', {
-          name: error.name,
-          message: error.message,
-          stack: error.stack?.substring(0, 500),
-        });
-      }
-      // Don't fail the request if worker trigger fails - cron will pick it up
-      console.log('[API] Job will be picked up by cron job instead');
-    }
+    // Don't await to avoid blocking the response
+    // Worker will either trigger immediately or cron will pick it up
+    autoTriggerWorkerServer()
+      .then(() => {
+        console.log('[API] Worker auto-trigger succeeded');
+      })
+      .catch((error) => {
+        console.error('[API] Worker auto-trigger FAILED:', error);
+        if (error instanceof Error) {
+          console.error('[API] Trigger error details:', {
+            name: error.name,
+            message: error.message,
+            stack: error.stack?.substring(0, 500),
+          });
+        }
+        console.log('[API] Job will be picked up by cron job instead');
+      });
 
     // Return job ID immediately
     return NextResponse.json({

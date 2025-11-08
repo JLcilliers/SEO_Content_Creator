@@ -4,6 +4,7 @@ import { useState } from 'react';
 import Form from '@/components/Form';
 import Loading from '@/components/Loading';
 import ResultView from '@/components/ResultView';
+import { WorkerHealth } from '@/components/WorkerHealth';
 import type { GenerateResponse } from '@/lib/typing';
 
 export default function Home() {
@@ -62,6 +63,9 @@ export default function Home() {
           sources={result.pages}
         />
       )}
+
+      {/* Worker Health Monitor - always visible */}
+      <WorkerHealth />
     </main>
   );
 }

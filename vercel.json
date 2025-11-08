@@ -12,5 +12,8 @@
       "path": "/api/worker",
       "schedule": "* * * * *"
     }
-  ]
+  ],
+  "env": {
+    "VERCEL_URL": "@vercel-url"
+  }
 }

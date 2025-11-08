@@ -82,29 +82,49 @@ export function autoTriggerWorkerClient(): void {
 
 /**
  * Auto-trigger worker when job is created (server-side)
+ * Uses multiple URL strategies with retry logic
  */
 export async function autoTriggerWorkerServer(): Promise<void> {
   if (typeof window !== 'undefined') return;
 
-  // Get base URL from environment or use default
-  const baseUrl = process.env.VERCEL_URL
-    ? `https://${process.env.VERCEL_URL}`
-    : process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
+  // Build multiple URL strategies to try in order
+  const urlStrategies = [
+    process.env.VERCEL_URL && `https://${process.env.VERCEL_URL}`,
+    process.env.NEXT_PUBLIC_VERCEL_URL && `https://${process.env.NEXT_PUBLIC_VERCEL_URL}`,
+    process.env.NEXT_PUBLIC_BASE_URL,
+    'http://localhost:3000'
+  ].filter(Boolean) as string[];
 
-  console.log('[Worker Trigger Server] Starting trigger, base URL:', baseUrl);
-  console.log('[Worker Trigger Server] Environment: VERCEL_URL=', process.env.VERCEL_URL || 'not set');
-  console.log('[Worker Trigger Server] Environment: NEXT_PUBLIC_BASE_URL=', process.env.NEXT_PUBLIC_BASE_URL || 'not set');
+  console.log('[Worker Trigger Server] Starting trigger with strategies:', urlStrategies);
+  console.log('[Worker Trigger Server] Environment:', {
+    VERCEL_URL: process.env.VERCEL_URL || 'not set',
+    NEXT_PUBLIC_VERCEL_URL: process.env.NEXT_PUBLIC_VERCEL_URL || 'not set',
+    NEXT_PUBLIC_BASE_URL: process.env.NEXT_PUBLIC_BASE_URL || 'not set',
+    NODE_ENV: process.env.NODE_ENV
+  });
 
-  try {
-    // Trigger immediately with await to catch errors
-    await triggerWorker(baseUrl);
-    console.log('[Worker Trigger Server] Trigger completed successfully');
-  } catch (error) {
-    console.error('[Worker Trigger Server] ERROR triggering worker:', error);
-    if (error instanceof Error) {
-      console.error('[Worker Trigger Server] Error message:', error.message);
-      console.error('[Worker Trigger Server] Error stack:', error.stack);
+  const errors: Array<{ url: string; error: Error }> = [];
+
+  // Try each URL strategy until one succeeds
+  for (const baseUrl of urlStrategies) {
+    try {
+      console.log(`[Worker Trigger Server] Attempting with URL: ${baseUrl}`);
+      await triggerWorker(baseUrl);
+      console.log(`[Worker Trigger Server] SUCCESS with ${baseUrl}`);
+      return; // Success, exit function
+    } catch (error) {
+      const err = error instanceof Error ? error : new Error(String(error));
+      errors.push({ url: baseUrl, error: err });
+      console.error(`[Worker Trigger Server] FAILED with ${baseUrl}:`, err.message);
     }
-    throw error; // Re-throw so calling code knows it failed
   }
+
+  // All strategies failed
+  console.error('[Worker Trigger Server] All trigger strategies failed:', {
+    attemptedUrls: urlStrategies,
+    errors: errors.map(e => ({ url: e.url, message: e.error.message }))
+  });
+
+  // Don't throw - let cron job handle it as fallback
+  console.log('[Worker Trigger Server] Worker will be triggered by cron job instead');
 }
