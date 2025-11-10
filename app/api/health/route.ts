@@ -50,7 +50,7 @@ export async function GET() {
     // Test database connectivity by fetching recent jobs
     const { data: recentJobs, error: recentError } = await supabase
       .from('jobs')
-      .select('id, status, created_at, updated_at, attempts, progress, message, input')
+      .select('id, status, created_at, updated_at, attempts, progress, message, input_url, input_topic')
       .order('created_at', { ascending: false })
       .limit(10);
 
@@ -110,7 +110,7 @@ export async function GET() {
       // Get oldest pending job
       const { data: oldestPending, error: oldestError } = await supabase
         .from('jobs')
-        .select('id, created_at, updated_at, attempts, input')
+        .select('id, created_at, updated_at, attempts, input_url')
         .eq('status', 'pending')
         .order('created_at', { ascending: true })
         .limit(1)
@@ -122,7 +122,7 @@ export async function GET() {
           createdAt: new Date(oldestPending.created_at).toISOString(),
           waitingForMinutes: Math.floor((now - oldestPending.created_at) / 60000),
           attempts: oldestPending.attempts,
-          url: oldestPending.input?.url,
+          url: oldestPending.input_url,
         };
       }
 
@@ -134,7 +134,7 @@ export async function GET() {
         message: job.message,
         ageMinutes: Math.floor((now - job.created_at) / 60000),
         attempts: job.attempts,
-        url: job.input?.url,
+        url: job.input_url,
         createdAt: new Date(job.created_at).toISOString(),
         updatedAt: new Date(job.updated_at).toISOString(),
       })) || [];

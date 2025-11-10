@@ -11,7 +11,7 @@ export async function GET(request: Request) {
 
     let query = supabase
       .from('jobs')
-      .select('id, status, created_at, updated_at, attempts, input')
+      .select('id, status, created_at, updated_at, attempts, input_url, input_topic')
       .order('created_at', { ascending: false })
       .limit(limit);
 
@@ -38,8 +38,8 @@ export async function GET(request: Request) {
         (now - new Date(job.updated_at).getTime()) / 60000
       ),
       attempts: job.attempts,
-      url: job.input?.url,
-      topic: job.input?.topic,
+      url: job.input_url,
+      topic: job.input_topic,
     }));
 
     return NextResponse.json({
