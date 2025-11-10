@@ -29,17 +29,27 @@ export function getAnthropic(): Anthropic {
 
 /**
  * Call Claude with messages and system prompt
+ * Now includes timeout protection to prevent hanging
  */
 async function callClaude(
   userMessage: string,
   system: string,
   temperature: number,
-  model: string
+  model: string,
+  timeoutMs: number = 40000 // 40 second timeout by default
 ): Promise<string> {
   const client = getAnthropic();
 
   try {
-    const response = await client.messages.create({
+    // Create timeout promise
+    const timeoutPromise = new Promise<never>((_, reject) => {
+      setTimeout(() => {
+        reject(new Error(`Claude API timeout after ${timeoutMs / 1000}s - consider reducing content length or max_tokens`));
+      }, timeoutMs);
+    });
+
+    // Create API call promise
+    const apiPromise = client.messages.create({
       model,
       max_tokens: 12000, // Restored high-quality setting for background processing
       temperature,
@@ -52,6 +62,9 @@ async function callClaude(
       ],
     });
 
+    // Race between API call and timeout
+    const response = await Promise.race([apiPromise, timeoutPromise]);
+
     const content = response.content[0];
     if (content.type !== 'text') {
       throw new Error('Unexpected response type from Claude');
@@ -59,6 +72,12 @@ async function callClaude(
 
     return content.text;
   } catch (error: any) {
+    // Handle timeout errors specifically
+    if (error?.message?.includes('timeout')) {
+      console.error('[AI] Claude API timeout detected:', error.message);
+      throw error;
+    }
+
     // Handle Anthropic API errors
     if (error?.status === 401) {
       throw new Error('Invalid API key. Please check your ANTHROPIC_API_KEY.');
