@@ -21,12 +21,25 @@ export async function GET(
       );
     }
 
-    return NextResponse.json(job);
+    return NextResponse.json(job, {
+      headers: {
+        'Cache-Control': 'no-store, no-cache, must-revalidate, max-age=0',
+        'Pragma': 'no-cache',
+        'Expires': '0',
+      }
+    });
   } catch (error) {
     console.error('Error fetching job:', error);
     return NextResponse.json(
       { error: 'Failed to fetch job status' },
-      { status: 500 }
+      {
+        status: 500,
+        headers: {
+          'Cache-Control': 'no-store, no-cache, must-revalidate, max-age=0',
+          'Pragma': 'no-cache',
+          'Expires': '0',
+        }
+      }
     );
   }
 }
