@@ -51,7 +51,7 @@ async function callClaude(
     // Create API call promise
     const apiPromise = client.messages.create({
       model,
-      max_tokens: 12000, // Restored high-quality setting for background processing
+      max_tokens: 8000, // Reduced from 12000 to speed up generation and prevent timeouts
       temperature,
       system,
       messages: [

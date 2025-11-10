@@ -131,8 +131,20 @@ export async function POST(request: NextRequest) {
         message: 'Generating SEO content with AI...',
       });
 
+      // Truncate context if too large to prevent AI timeout
+      // Max context: 30,000 characters (~6000 words) to keep under 90s timeout
+      let context = crawlResult.context;
+      const MAX_CONTEXT_LENGTH = 30000;
+
+      if (context.length > MAX_CONTEXT_LENGTH) {
+        console.log(`[Worker] Job ${jobId}: Context truncated from ${context.length} to ${MAX_CONTEXT_LENGTH} characters`);
+        context = context.substring(0, MAX_CONTEXT_LENGTH) + '\n\n[Content truncated for processing efficiency...]';
+      } else {
+        console.log(`[Worker] Job ${jobId}: Context length: ${context.length} characters`);
+      }
+
       const finalText = await generateWithRefinement(
-        crawlResult.context,
+        context,
         topic,
         keywords,
         length
