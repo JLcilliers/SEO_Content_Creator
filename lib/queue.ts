@@ -210,15 +210,19 @@ export async function createJob(input: Job['input']): Promise<string> {
 
 /**
  * Get job by ID
- * IMPORTANT: Uses maybeSingle() to avoid PostgREST caching issues
+ * IMPORTANT: Uses timestamp filter to bust Supabase query cache
+ * Even though we filter by specific ID, PostgREST can still cache the response
  */
 export async function getJob(jobId: string): Promise<Job | null> {
   const client = getSupabase();
 
+  // Add timestamp filter to bust cache - will match the job if created before now+1s
+  const now = Date.now();
   const { data, error } = await client
     .from('jobs')
     .select('*')
     .eq('id', jobId)
+    .lt('created_at', now + 1000)
     .maybeSingle();
 
   if (error) {
