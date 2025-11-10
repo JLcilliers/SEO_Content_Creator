@@ -1,15 +1,12 @@
-import { createClient } from '@supabase/supabase-js';
 import { NextResponse } from 'next/server';
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
+import { getSupabase } from '@/lib/queue';
 
 export async function GET() {
   const now = Date.now();
 
   try {
+    const supabase = getSupabase();
+
     // Get pending jobs
     const { data: pendingJobs, error: pendingError } = await supabase
       .from('jobs')

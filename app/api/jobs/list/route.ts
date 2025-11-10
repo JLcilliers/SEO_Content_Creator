@@ -1,10 +1,5 @@
-import { createClient } from '@supabase/supabase-js';
 import { NextResponse } from 'next/server';
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
+import { getSupabase } from '@/lib/queue';
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
@@ -12,6 +7,8 @@ export async function GET(request: Request) {
   const limit = parseInt(searchParams.get('limit') || '50', 10);
 
   try {
+    const supabase = getSupabase();
+
     let query = supabase
       .from('jobs')
       .select('id, status, created_at, updated_at, attempts, input')

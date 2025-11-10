@@ -1,10 +1,5 @@
-import { createClient } from '@supabase/supabase-js';
 import { NextResponse } from 'next/server';
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
+import { getSupabase } from '@/lib/queue';
 
 export async function POST(
   request: Request,
@@ -15,6 +10,8 @@ export async function POST(
   console.log(`[Reset] Resetting job: ${jobId}`);
 
   try {
+    const supabase = getSupabase();
+
     // First, check if job exists
     const { data: job, error: fetchError } = await supabase
       .from('jobs')
