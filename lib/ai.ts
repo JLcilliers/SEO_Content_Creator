@@ -36,7 +36,7 @@ async function callClaude(
   system: string,
   temperature: number,
   model: string,
-  timeoutMs: number = 40000 // 40 second timeout by default
+  timeoutMs: number = 90000 // 90 second timeout - increased for complex content generation
 ): Promise<string> {
   const client = getAnthropic();
 
