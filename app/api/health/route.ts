@@ -48,9 +48,11 @@ export async function GET() {
     const supabase = getSupabase();
 
     // Test database connectivity by fetching recent jobs
+    // Use timestamp filter to bust Supabase query cache
     const { data: recentJobs, error: recentError } = await supabase
       .from('jobs')
       .select('id, status, created_at, updated_at, attempts, progress, message, input_url, input_topic')
+      .lt('created_at', now + 1000) // Cache-busting: will match all jobs created before now+1s
       .order('created_at', { ascending: false })
       .limit(10);
 
@@ -67,9 +69,11 @@ export async function GET() {
       });
 
       // Get all jobs count and status distribution
+      // Cache-busting: use timestamp filter
       const { data: allJobs, error: allJobsError } = await supabase
         .from('jobs')
-        .select('status');
+        .select('status')
+        .lt('created_at', now + 1000);
 
       if (!allJobsError && allJobs) {
         const fullStatusCounts: Record<string, number> = {};
@@ -87,12 +91,14 @@ export async function GET() {
       }
 
       // Find stuck jobs (in progress states for >5 minutes)
+      // Cache-busting: the .lt('updated_at', fiveMinutesAgo) already provides dynamic filtering
       const fiveMinutesAgo = now - 5 * 60 * 1000;
       const { data: stuckJobs, error: stuckError } = await supabase
         .from('jobs')
         .select('id, status, created_at, updated_at, attempts, progress, message')
         .in('status', ['pending', 'crawling', 'generating', 'parsing'])
-        .lt('updated_at', fiveMinutesAgo);
+        .lt('updated_at', fiveMinutesAgo)
+        .lt('created_at', now + 1000); // Additional cache-busting
 
       if (!stuckError && stuckJobs) {
         diagnostics.jobs.stuck = stuckJobs.map((job) => ({
@@ -108,10 +114,12 @@ export async function GET() {
       }
 
       // Get oldest pending job
+      // Cache-busting: use timestamp filter
       const { data: oldestPending, error: oldestError } = await supabase
         .from('jobs')
         .select('id, created_at, updated_at, attempts, input_url')
         .eq('status', 'pending')
+        .lt('created_at', now + 1000)
         .order('created_at', { ascending: true })
         .limit(1)
         .maybeSingle();

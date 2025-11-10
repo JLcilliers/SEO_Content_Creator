@@ -9,9 +9,14 @@ export async function GET(request: Request) {
   try {
     const supabase = getSupabase();
 
+    // Use timestamp filter to bust Supabase query cache
+    // PostgREST caches queries with identical parameters, so adding a dynamic timestamp ensures fresh results
+    const now = Date.now();
+
     let query = supabase
       .from('jobs')
       .select('id, status, created_at, updated_at, attempts, input_url, input_topic')
+      .lt('created_at', now + 1000) // Cache-busting: will match all jobs created before now+1s
       .order('created_at', { ascending: false })
       .limit(limit);
 
@@ -25,8 +30,6 @@ export async function GET(request: Request) {
       console.error('[List] Error fetching jobs:', error);
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
-
-    const now = Date.now();
 
     const jobsWithDetails = jobs?.map((job) => ({
       id: job.id,
@@ -45,6 +48,7 @@ export async function GET(request: Request) {
     return NextResponse.json({
       jobs: jobsWithDetails,
       count: jobsWithDetails?.length || 0,
+      total: jobsWithDetails?.length || 0, // Alias for count
       filter: status || 'all',
       timestamp: new Date().toISOString(),
     });
