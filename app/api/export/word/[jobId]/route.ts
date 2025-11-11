@@ -199,8 +199,8 @@ export async function GET(
     const { Packer } = await import('docx');
     const buffer = await Packer.toBuffer(doc);
 
-    // Return as downloadable file
-    return new NextResponse(buffer, {
+    // Return as downloadable file - convert Buffer to Uint8Array for NextResponse
+    return new NextResponse(new Uint8Array(buffer), {
       headers: {
         'Content-Type': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
         'Content-Disposition': `attachment; filename="seo-content-${jobId}.docx"`,
