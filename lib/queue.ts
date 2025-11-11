@@ -29,6 +29,7 @@ export interface Job {
     topic: string;
     keywords: string[];
     length: number;
+    additionalNotes?: string;
   };
   result?: {
     metaTitle: string;
@@ -55,6 +56,7 @@ interface JobRow {
   input_topic: string;
   input_keywords: any; // JSONB
   input_length: number;
+  input_additional_notes: string | null;
   result_meta_title: string | null;
   result_meta_description: string | null;
   result_content_markdown: string | null;
@@ -128,6 +130,7 @@ function rowToJob(row: JobRow): Job {
       topic: row.input_topic,
       keywords: row.input_keywords,
       length: row.input_length,
+      additionalNotes: row.input_additional_notes || undefined,
     },
     result: hasResult
       ? {
@@ -160,6 +163,7 @@ function jobToRow(job: Job): Partial<JobRow> {
     input_topic: job.input.topic,
     input_keywords: job.input.keywords,
     input_length: job.input.length,
+    input_additional_notes: job.input.additionalNotes || null,
     result_meta_title: job.result?.metaTitle || null,
     result_meta_description: job.result?.metaDescription || null,
     result_content_markdown: job.result?.contentMarkdown || null,

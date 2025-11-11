@@ -138,8 +138,8 @@ export function WorkerHealth() {
 
   if (!health) return null;
 
-  const hasWarnings = health.queue.stuckCount > 0;
-  const hasErrors = health.health.status.includes('ERROR');
+  const hasWarnings = health.queue?.stuckCount ? health.queue.stuckCount > 0 : false;
+  const hasErrors = health.health?.status?.includes('ERROR') || false;
 
   return (
     <div className="fixed bottom-4 right-4 bg-white border border-gray-300 rounded-lg shadow-lg text-xs max-w-md">
@@ -149,14 +149,14 @@ export function WorkerHealth() {
         onClick={() => setExpanded(!expanded)}
       >
         <div className="flex items-center gap-2">
-          <span className="text-lg">{health.health.status.split(' ')[0]}</span>
+          <span className="text-lg">{health.health?.status?.split(' ')[0] || '❓'}</span>
           <div>
             <div className="font-semibold">Worker Health</div>
             <div className="text-gray-500 text-[10px]">
-              {health.queue.pendingCount} pending
-              {health.queue.stuckCount > 0 && (
+              {health.queue?.pendingCount ?? 0} pending
+              {(health.queue?.stuckCount ?? 0) > 0 && (
                 <span className="text-orange-600 ml-1">
-                  · {health.queue.stuckCount} stuck
+                  · {health.queue?.stuckCount} stuck
                 </span>
               )}
             </div>
@@ -176,12 +176,12 @@ export function WorkerHealth() {
             <div className="space-y-1 text-[11px]">
               <div className="flex justify-between">
                 <span className="text-gray-600">Pending jobs:</span>
-                <span className="font-mono">{health.queue.pendingCount}</span>
+                <span className="font-mono">{health.queue?.pendingCount ?? 0}</span>
               </div>
-              {health.queue.stuckCount > 0 && (
+              {(health.queue?.stuckCount ?? 0) > 0 && (
                 <div className="flex justify-between text-orange-600">
                   <span>⚠️ Stuck jobs:</span>
-                  <span className="font-mono">{health.queue.stuckCount}</span>
+                  <span className="font-mono">{health.queue?.stuckCount}</span>
                 </div>
               )}
               {health.statistics?.lastRun && (
@@ -196,7 +196,7 @@ export function WorkerHealth() {
           </div>
 
           {/* Oldest Pending Job */}
-          {health.queue.oldestPendingJob && (
+          {health.queue?.oldestPendingJob && (
             <div>
               <div className="font-semibold mb-1">Oldest Pending</div>
               <div className="bg-yellow-50 p-2 rounded text-[10px] space-y-1">
@@ -283,7 +283,7 @@ export function WorkerHealth() {
 
           {/* Last Updated */}
           <div className="text-center text-gray-400 text-[10px]">
-            Updated: {new Date(health.health.timestamp).toLocaleTimeString()}
+            Updated: {health.health?.timestamp ? new Date(health.health.timestamp).toLocaleTimeString() : 'Unknown'}
           </div>
         </div>
       )}

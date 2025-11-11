@@ -55,6 +55,7 @@ export default function Home() {
 
       {result && !loading && (
         <ResultView
+          jobId={result.jobId}
           metaTitle={result.metaTitle}
           metaDescription={result.metaDescription}
           contentMarkdown={result.contentMarkdown}

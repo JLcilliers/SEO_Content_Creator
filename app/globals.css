@@ -101,11 +101,35 @@ body {
   cursor: not-allowed;
 }
 
+.form-group textarea {
+  width: 100%;
+  padding: var(--spacing-md);
+  font-size: 1rem;
+  font-family: var(--font-family);
+  border: 2px solid var(--color-border);
+  border-radius: var(--border-radius);
+  transition: border-color 0.2s;
+  resize: vertical;
+  min-height: 120px;
+  line-height: 1.6;
+}
+
+.form-group textarea:focus {
+  outline: none;
+  border-color: var(--color-primary);
+}
+
+.form-group textarea:disabled {
+  background-color: var(--color-bg-alt);
+  cursor: not-allowed;
+}
+
 .form-hint {
   display: block;
   margin-top: var(--spacing-xs);
   font-size: 0.875rem;
   color: var(--color-text-light);
+  line-height: 1.5;
 }
 
 .submit-button {
@@ -450,6 +474,39 @@ body {
 
 .copy-button:active {
   background-color: var(--color-success);
+}
+
+/* Export Word Button */
+.section-heading-wrapper {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--spacing-md);
+}
+
+.export-word-button {
+  background-color: #2563eb;
+  color: white;
+  border: none;
+  padding: 0.75rem 1.5rem;
+  border-radius: var(--border-radius);
+  font-size: 1rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.2s, transform 0.1s;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.export-word-button:hover {
+  background-color: #1d4ed8;
+  transform: translateY(-1px);
+}
+
+.export-word-button:active {
+  background-color: #1e40af;
+  transform: translateY(0);
 }
 
 /* Responsive */

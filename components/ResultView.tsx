@@ -5,6 +5,7 @@ import remarkGfm from 'remark-gfm';
 import CopyButton from './CopyButton';
 
 interface ResultViewProps {
+  jobId?: string;
   metaTitle: string;
   metaDescription: string;
   contentMarkdown: string;
@@ -14,6 +15,7 @@ interface ResultViewProps {
 }
 
 export default function ResultView({
+  jobId,
   metaTitle,
   metaDescription,
   contentMarkdown,
@@ -21,9 +23,30 @@ export default function ResultView({
   schemaJsonString,
   sources,
 }: ResultViewProps) {
+  const handleExportWord = () => {
+    if (!jobId) {
+      alert('Job ID not available for export');
+      return;
+    }
+
+    // Open download link
+    window.open(`/api/export/word/${jobId}`, '_blank');
+  };
+
   return (
     <div className="result-view">
-      <h2 className="section-heading">Generated Content</h2>
+      <div className="section-heading-wrapper">
+        <h2 className="section-heading">Generated Content</h2>
+        {jobId && (
+          <button
+            onClick={handleExportWord}
+            className="export-word-button"
+            title="Export to Word document"
+          >
+            📄 Export to Word
+          </button>
+        )}
+      </div>
 
       {/* Meta Tags */}
       <section className="meta-section">

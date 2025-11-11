@@ -15,6 +15,7 @@ export default function Form({ onSuccess, onError, onLoadingChange, onProgressUp
   const [topic, setTopic] = useState('');
   const [keywords, setKeywords] = useState('');
   const [length, setLength] = useState(1500);
+  const [additionalNotes, setAdditionalNotes] = useState('');
   const [loading, setLoading] = useState(false);
 
   // Poll job status
@@ -71,6 +72,7 @@ export default function Form({ onSuccess, onError, onLoadingChange, onProgressUp
 
           // Transform result to match GenerateResponse interface
           onSuccess({
+            jobId,
             metaTitle: job.result.metaTitle,
             metaDescription: job.result.metaDescription,
             contentMarkdown: job.result.contentMarkdown,
@@ -125,6 +127,7 @@ export default function Form({ onSuccess, onError, onLoadingChange, onProgressUp
           topic,
           keywords,
           length,
+          additionalNotes,
         }),
       });
 
@@ -228,6 +231,24 @@ export default function Form({ onSuccess, onError, onLoadingChange, onProgressUp
           required
         />
         <small className="form-hint">Recommended: 1500-2500 words for comprehensive SEO content</small>
+      </div>
+
+      <div className="form-group">
+        <label htmlFor="additionalNotes">
+          Additional Notes (Optional)
+        </label>
+        <textarea
+          id="additionalNotes"
+          value={additionalNotes}
+          onChange={(e) => setAdditionalNotes(e.target.value)}
+          placeholder="Add any specific requirements, restrictions, topics to avoid, or emphasis areas (e.g., 'Avoid mentioning competitors', 'Focus on environmental benefits', 'Do not discuss pricing')"
+          disabled={loading}
+          rows={4}
+          maxLength={500}
+        />
+        <small className="form-hint">
+          Optional guidance for the AI (e.g., topics to avoid, areas to emphasize, tone preferences)
+        </small>
       </div>
 
       <button type="submit" disabled={loading} className="submit-button">

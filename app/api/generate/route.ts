@@ -14,6 +14,7 @@ const GenerateSchema = z.object({
   topic: z.string().min(3).max(140),
   keywords: z.string().min(1),
   length: z.number().int().min(300).max(3000),
+  additionalNotes: z.string().max(500).optional(),
 });
 
 export async function POST(request: NextRequest) {
@@ -32,7 +33,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { url, topic, keywords: keywordsRaw, length } = validation.data;
+    const { url, topic, keywords: keywordsRaw, length, additionalNotes } = validation.data;
 
     // Normalize inputs
     const normalizedUrl = normalizeUrl(url);
@@ -65,6 +66,7 @@ export async function POST(request: NextRequest) {
       topic,
       keywords,
       length,
+      additionalNotes,
     });
 
     console.log(`[API] Created job ${jobId} for ${normalizedUrl}`);

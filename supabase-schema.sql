@@ -16,6 +16,7 @@ CREATE TABLE IF NOT EXISTS jobs (
   input_topic TEXT NOT NULL,
   input_keywords JSONB NOT NULL,
   input_length INTEGER NOT NULL,
+  input_additional_notes TEXT,
 
   -- Result data (nullable until completed)
   result_meta_title TEXT,

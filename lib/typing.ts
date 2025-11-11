@@ -7,6 +7,7 @@ export interface GeneratePayload {
   topic: string;
   keywords: string;
   length: number;
+  additionalNotes?: string;
 }
 
 export interface ScrapedPage {
@@ -30,6 +31,7 @@ export interface ParsedSections {
 }
 
 export interface GenerateResponse {
+  jobId?: string;
   metaTitle: string;
   metaDescription: string;
   contentMarkdown: string;

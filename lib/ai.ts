@@ -102,7 +102,8 @@ export async function generateWithRefinement(
   context: string,
   topic: string,
   keywords: string[],
-  targetLength: number
+  targetLength: number,
+  additionalNotes?: string
 ): Promise<string> {
   const model = process.env.CLAUDE_MODEL || 'claude-sonnet-4-5-20250929';
   const temperature = parseFloat(process.env.PROMPT_TEMPERATURE || '0.2');
@@ -110,8 +111,8 @@ export async function generateWithRefinement(
   const joinedKeywords = keywords.join(', ');
 
   // Single comprehensive pass - publication-ready content
-  console.log('Generating publication-ready SEO content (single-pass)...');
-  const comprehensivePrompt = buildComprehensivePrompt(context, topic, joinedKeywords, targetLength);
+  console.log(`Generating publication-ready SEO content (single-pass)${additionalNotes ? ' with additional notes' : ''}...`);
+  const comprehensivePrompt = buildComprehensivePrompt(context, topic, joinedKeywords, targetLength, additionalNotes);
   const finalContent = await callClaude(comprehensivePrompt, SYSTEM_PROMPT, temperature, model);
 
   // Extract content block to verify word count

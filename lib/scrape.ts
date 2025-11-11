@@ -156,82 +156,44 @@ export function findInternalLinks(html: string, baseUrl: string): string[] {
 }
 
 /**
- * Crawl a website starting from the main URL
- * Implements BFS priority crawling with concurrency limit
+ * Crawl a website - simplified to analyze ONLY the homepage
+ * This prevents Claude API timeouts by keeping context small and focused
  */
 export async function crawl(
   startUrl: string,
-  maxPages = 10,
-  concurrency = 3,
+  maxPages = 10, // Kept for API compatibility but ignored
+  concurrency = 3, // Kept for API compatibility but ignored
   timeoutMs = 12000
 ): Promise<CrawlResult> {
-  const pages: ScrapedPage[] = [];
-  const visited = new Set<string>();
-  const queue: string[] = [startUrl];
-  const limit = pLimit(concurrency);
+  console.log(`[Scrape] Analyzing homepage only: ${startUrl}`);
 
-  while (queue.length > 0 && pages.length < maxPages) {
-    const batchSize = Math.min(concurrency, maxPages - pages.length, queue.length);
-    const batch = queue.splice(0, batchSize);
+  try {
+    // Fetch only the homepage
+    const html = await fetchHtml(startUrl, timeoutMs);
+    const { text, title } = extractMainText(html);
 
-    const promises = batch.map((url) =>
-      limit(async () => {
-        if (visited.has(url)) return null;
-        visited.add(url);
-
-        try {
-          const html = await fetchHtml(url, timeoutMs);
-          const { text, title } = extractMainText(html);
-
-          if (!text || text.length < 50) {
-            return null;
-          }
-
-          const page: ScrapedPage = { url, title, text };
-
-          // Only find more links if we haven't reached the limit
-          if (pages.length === 0) {
-            // First page: find internal links
-            const links = findInternalLinks(html, startUrl);
-            for (const link of links) {
-              if (!visited.has(link) && !queue.includes(link)) {
-                queue.push(link);
-              }
-            }
-          }
-
-          return page;
-        } catch (error) {
-          console.error(`Failed to crawl ${url}:`, error);
-          return null;
-        }
-      })
-    );
-
-    const results = await Promise.all(promises);
-
-    for (const page of results) {
-      if (page && pages.length < maxPages) {
-        pages.push(page);
-      }
+    if (!text || text.length < 50) {
+      throw new Error(
+        'No content could be extracted from the homepage. The site may be JavaScript-rendered or inaccessible.'
+      );
     }
-  }
 
-  if (pages.length === 0) {
+    // Create single page result
+    const page: ScrapedPage = { url: startUrl, title, text };
+
+    // Build context string from homepage only
+    const context = `[HOMEPAGE: ${page.title} | ${page.url}]\n${page.text}`;
+
+    console.log(`[Scrape] Homepage analyzed: ${text.length} characters, ~${text.split(/\s+/).length} words`);
+
+    return {
+      context,
+      pages: [{ title: page.title, url: page.url }]
+    };
+  } catch (error) {
+    console.error(`[Scrape] Failed to analyze homepage ${startUrl}:`, error);
     throw new Error(
-      'No content could be extracted from the website. The site may be JavaScript-rendered or inaccessible.'
+      `Failed to analyze homepage: ${error instanceof Error ? error.message : 'Unknown error'}`
     );
   }
-
-  // Build context string with labeled sections
-  const contextParts = pages.map(
-    (page) => `[PAGE: ${page.title} | ${page.url}]\n${page.text}\n---`
-  );
-
-  const context = contextParts.join('\n\n');
-
-  // Return simple page list for transparency
-  const pageList = pages.map((p) => ({ title: p.title, url: p.url }));
-
-  return { context, pages: pageList };
 }

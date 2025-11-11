@@ -33,8 +33,20 @@ export function buildComprehensivePrompt(
   siteContext: string,
   topic: string,
   joinedKeywords: string,
-  length: number
+  length: number,
+  additionalNotes?: string
 ): string {
+  const notesSection = additionalNotes ? `
+ADDITIONAL NOTES & REQUIREMENTS:
+${additionalNotes}
+
+IMPORTANT: Follow the additional notes carefully. These are specific requirements from the client that MUST be incorporated:
+- If notes mention topics to avoid, ensure those topics are NOT discussed anywhere in the content
+- If notes mention topics to emphasize, give those topics prominent coverage with detailed explanations
+- If notes specify tone preferences, adjust the writing style accordingly
+- Treat these notes as high-priority constraints that override general guidelines when there's a conflict
+` : '';
+
   return `You are creating publication-ready, SEO-optimized content for the website described below. This is a comprehensive single-pass generation - produce final, polished content ready for immediate publishing. Use ONLY the site context for all factual claims, examples, and specific information.
 
 [SITE CONTEXT START]
@@ -45,6 +57,7 @@ CONTENT PARAMETERS:
 Topic: ${topic}
 Primary Keywords: ${joinedKeywords}
 Target Length: ${length} words (±5% acceptable for quality - prioritize comprehensive coverage)
+${notesSection}
 
 ADVANCED SEO OPTIMIZATION REQUIREMENTS:
 
@@ -233,10 +246,11 @@ export function buildGenerationPrompt(
   siteContext: string,
   topic: string,
   joinedKeywords: string,
-  length: number
+  length: number,
+  additionalNotes?: string
 ): string {
   // Use the comprehensive prompt as base - it's better quality
-  return buildComprehensivePrompt(siteContext, topic, joinedKeywords, length);
+  return buildComprehensivePrompt(siteContext, topic, joinedKeywords, length, additionalNotes);
 }
 
 export function buildRefinePromptPass1(

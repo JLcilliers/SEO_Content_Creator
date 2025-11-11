@@ -94,7 +94,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Job not found' }, { status: 404 });
     }
 
-    const { url, topic, keywords, length } = job.input;
+    const { url, topic, keywords, length, additionalNotes } = job.input;
 
     // Increment attempt counter
     await incrementJobAttempt(jobId);
@@ -102,11 +102,11 @@ export async function POST(request: NextRequest) {
     console.log(`[Worker] Job ${jobId}: Attempt ${job.attempts + 1}, Processing...`);
 
     try {
-      // Stage 1: Crawling
+      // Stage 1: Analyzing Homepage
       await updateJob(jobId, {
         status: JobStatus.CRAWLING,
         progress: 10,
-        message: `Crawling ${url}...`,
+        message: `Analyzing homepage: ${url}`,
       });
 
       const maxPages = parseInt(process.env.SCRAPE_MAX_PAGES || '5', 10);
@@ -116,12 +116,12 @@ export async function POST(request: NextRequest) {
       const crawlResult = await crawl(url, maxPages, concurrency, timeoutMs);
       const crawlDuration = Date.now() - startTime;
 
-      console.log(`[Worker] Job ${jobId}: Crawled ${crawlResult.pages.length} pages in ${crawlDuration}ms`);
+      console.log(`[Worker] Job ${jobId}: Homepage analyzed in ${crawlDuration}ms`);
 
       await updateJob(jobId, {
         status: JobStatus.CRAWLING,
         progress: 30,
-        message: `Crawled ${crawlResult.pages.length} pages`,
+        message: `Homepage analyzed successfully`,
       });
 
       // Stage 2: AI Generation
@@ -131,23 +131,16 @@ export async function POST(request: NextRequest) {
         message: 'Generating SEO content with AI...',
       });
 
-      // Truncate context if too large to prevent AI timeout
-      // Max context: 30,000 characters (~6000 words) to keep under 90s timeout
-      let context = crawlResult.context;
-      const MAX_CONTEXT_LENGTH = 30000;
-
-      if (context.length > MAX_CONTEXT_LENGTH) {
-        console.log(`[Worker] Job ${jobId}: Context truncated from ${context.length} to ${MAX_CONTEXT_LENGTH} characters`);
-        context = context.substring(0, MAX_CONTEXT_LENGTH) + '\n\n[Content truncated for processing efficiency...]';
-      } else {
-        console.log(`[Worker] Job ${jobId}: Context length: ${context.length} characters`);
-      }
+      // Use homepage context directly (already optimized in scrape.ts)
+      const context = crawlResult.context;
+      console.log(`[Worker] Job ${jobId}: Homepage context length: ${context.length} characters (~${Math.round(context.length / 5)} words)`);
 
       const finalText = await generateWithRefinement(
         context,
         topic,
         keywords,
-        length
+        length,
+        additionalNotes
       );
 
       const genDuration = Date.now() - startTime;
