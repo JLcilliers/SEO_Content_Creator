@@ -68,7 +68,7 @@ let supabase: SupabaseClient | null = null;
 
 /**
  * Get or create Supabase client
- * IMPORTANT: Creates a fresh client each time to avoid caching issues in serverless
+ * IMPORTANT: Forces cache: 'no-store' to bypass Next.js Data Cache
  */
 export function getSupabase(): SupabaseClient {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -80,7 +80,7 @@ export function getSupabase(): SupabaseClient {
     );
   }
 
-  // Always create a fresh client to avoid stale cache in serverless environment
+  // Create client with fetch override to bypass Next.js Data Cache
   return createClient(url, key, {
     auth: {
       autoRefreshToken: false,
@@ -90,9 +90,9 @@ export function getSupabase(): SupabaseClient {
       schema: 'public',
     },
     global: {
-      headers: {
-        'Cache-Control': 'no-cache, no-store, must-revalidate',
-      },
+      // Force every supabase-js fetch to bypass Next.js Data Cache
+      fetch: (url: RequestInfo | URL, init?: RequestInit) =>
+        fetch(url, { ...init, cache: 'no-store' }),
     },
   });
 }
@@ -210,19 +210,15 @@ export async function createJob(input: Job['input']): Promise<string> {
 
 /**
  * Get job by ID
- * IMPORTANT: Uses timestamp filter to bust Supabase query cache
- * Even though we filter by specific ID, PostgREST can still cache the response
+ * Note: getSupabase() now forces cache: 'no-store' to bypass Next.js Data Cache
  */
 export async function getJob(jobId: string): Promise<Job | null> {
   const client = getSupabase();
 
-  // Add timestamp filter to bust cache - will match the job if created before now+1s
-  const now = Date.now();
   const { data, error } = await client
     .from('jobs')
     .select('*')
     .eq('id', jobId)
-    .lt('created_at', now + 1000)
     .maybeSingle();
 
   if (error) {
@@ -286,18 +282,15 @@ export async function updateJob(
 
 /**
  * Get next pending job
- * IMPORTANT: Uses RPC or timestamp filter to avoid PostgREST query caching
+ * Note: getSupabase() now forces cache: 'no-store' to bypass Next.js Data Cache
  */
 export async function getNextPendingJob(): Promise<string | null> {
   const client = getSupabase();
 
-  // Use timestamp filter to prevent query caching - queries with different parameters aren't cached together
-  const now = Date.now();
   const { data, error } = await client
     .from('jobs')
     .select('id')
     .eq('status', 'pending')
-    .lt('created_at', now + 1000) // Add timestamp filter to bust cache (will match all jobs created before now+1s)
     .order('created_at', { ascending: true })
     .limit(1)
     .maybeSingle();
@@ -444,18 +437,15 @@ export async function cleanupOldJobs(maxAgeMs: number = 86400000): Promise<numbe
 
 /**
  * Check if there are any pending jobs in the queue
- * IMPORTANT: Uses timestamp filter to avoid PostgREST query caching
+ * Note: getSupabase() now forces cache: 'no-store' to bypass Next.js Data Cache
  */
 export async function hasPendingJobs(): Promise<boolean> {
   const client = getSupabase();
 
-  // Use timestamp filter to prevent query caching - queries with different parameters aren't cached together
-  const now = Date.now();
   const { data, error} = await client
     .from('jobs')
     .select('id')
     .eq('status', 'pending')
-    .lt('created_at', now + 1000) // Add timestamp filter to bust cache (will match all jobs created before now+1s)
     .limit(1)
     .maybeSingle();
 
